@@ -1,0 +1,108 @@
+.events-page,.event-detail-page,.academy-page,.shoots-page{padding-top:64px;padding-bottom:100px}
+.event-page-intro,.academy-intro{margin-bottom:48px}
+.event-heading-row{display:flex;justify-content:space-between;align-items:flex-end;gap:40px}
+.event-heading-row .page-heading{margin:20px 0 0;font-size:clamp(46px,6vw,88px);line-height:1.02;letter-spacing:-.065em;font-weight:500}
+.event-heading-row .page-heading span{color:#8d8d8d}
+.event-heading-row>p{max-width:310px;line-height:1.7;margin:0 0 5px;font-size:14px}
+.events-filter-grid{display:grid;grid-template-columns:1.45fr 1fr 1fr 1fr 1.2fr;gap:16px;padding:28px 0;border-top:1px solid #d5d5d5;border-bottom:1px solid #d5d5d5}
+.events-filter-grid .MuiOutlinedInput-root{border-radius:0;background:transparent;font-size:13px}
+.events-filter-grid .MuiInputLabel-root{font-size:13px}
+.events-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:28px 0 36px}
+.events-view-toolbar .eyebrow{margin:0}
+.events-view-toolbar .MuiToggleButton-root{border-radius:0;text-transform:none;min-width:86px;font-size:12px;color:#111}
+.events-view-toolbar .Mui-selected{background:#111!important;color:#fff!important}
+.event-reset{border:0;background:none;color:#777;font-size:12px;text-decoration:underline;text-underline-offset:4px;cursor:pointer;padding:8px 0}
+.event-card{margin-bottom:18px}
+.event-card-photo{position:relative;display:block;aspect-ratio:1.29;background:#ddd;overflow:hidden}
+.event-card-photo img,.event-detail-photo img,.shoot-project-photo img,.academy-course-photo img,.academy-lead-photo img{object-fit:cover;filter:grayscale(100%);transition:transform .55s ease}
+.event-card-photo:hover img,.shoot-project-photo:hover img{transform:scale(1.04)}
+.event-card-type{position:absolute;left:16px;top:16px;background:#f7f6f2!important;color:#111!important;padding:6px 10px!important;font-size:10px!important;border:0!important}
+.event-card-state{position:absolute;right:12px;bottom:12px;padding:6px 10px;background:#111;color:#fff;font-size:10px}
+.event-card-meta{display:flex;justify-content:space-between;gap:12px;text-transform:uppercase;letter-spacing:.08em;font-size:10px;margin:19px 0 12px;color:#6b6b6b}
+.event-card-title{display:flex;justify-content:space-between;gap:12px;text-decoration:none;align-items:center}
+.event-card-title h2{font-size:clamp(20px,2vw,27px);font-weight:500;letter-spacing:-.045em;margin:0}
+.event-card-title>span{font-size:26px;font-weight:400}
+.event-card>p{font-size:12px;margin:8px 0 0}
+.events-empty{text-align:center;padding:90px 15px 120px}
+.events-empty h2{font-size:32px;letter-spacing:-.04em}
+.events-empty .button{margin-top:15px}
+.events-demo-note{font-size:11px;line-height:1.6;max-width:600px;margin:35px 0}
+.events-bottom-cta{margin-top:65px;border-top:1px solid #aaa;padding-top:42px;display:flex;align-items:center;justify-content:space-between;gap:35px}
+.events-bottom-cta h2{font-size:clamp(28px,4vw,48px);letter-spacing:-.05em;margin:12px 0 0;font-weight:400}
+.events-calendar{border:1px solid #c9c9c9}
+.calendar-month{padding:18px 22px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #c9c9c9}
+.calendar-month h2{font-size:24px;letter-spacing:-.03em;text-transform:capitalize;margin:0;font-weight:500}
+.calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.calendar-weekdays span{font-size:10px;padding:15px;text-align:right;color:#777;letter-spacing:.1em;border-right:1px solid #ddd}
+.calendar-day{min-height:150px;border-top:1px solid #ddd;border-right:1px solid #ddd;padding:12px;position:relative}
+.calendar-day:nth-child(7n){border-right:0}
+.calendar-day-number{display:block;text-align:right;font-size:12px;color:#666;margin-bottom:10px}
+.calendar-day-empty{background:#eee}
+.calendar-event{display:flex;flex-direction:column;gap:5px;padding:8px;background:#111;color:#fff;text-decoration:none;margin-top:6px;word-break:break-word}
+.calendar-event:hover{color:#fff;background:#333}
+.calendar-event span{font-size:9px;opacity:.65}
+.calendar-event strong{font-size:11px;line-height:1.35;letter-spacing:-.02em;font-weight:500}
+.calendar-event small{font-size:9px;opacity:.8}
+.calendar-event-cancelled{background:#d6d6d6;color:#555;text-decoration:line-through}
+.calendar-mobile-note{font-size:11px;padding:15px;margin:0;border-top:1px solid #ddd}
+.event-back-link{display:inline-block;margin-bottom:45px;font-size:12px}
+.event-detail-heading{margin-bottom:38px}
+.event-detail-heading .page-heading{font-size:clamp(42px,7vw,104px);letter-spacing:-.065em;line-height:1.02;margin:20px 0 22px;font-weight:500;overflow-wrap:anywhere}
+.event-detail-photo{position:relative;aspect-ratio:1.4;background:#ddd;overflow:hidden}
+.event-detail-copy{padding:45px 0 30px;max-width:660px}
+.event-detail-copy h2{font-size:35px;letter-spacing:-.05em;font-weight:400;margin:15px 0 20px}
+.event-detail-copy>p:last-child{font-size:16px;line-height:1.85;color:#555}
+.event-requirements{border-top:1px solid #ccc;padding-top:28px}
+.event-requirements ol{list-style:none;padding:0;margin:20px 0}
+.event-requirements li{display:flex;gap:25px;padding:15px 0;border-bottom:1px solid #ddd;font-size:14px;line-height:1.6}
+.event-requirements li>span{font-size:11px;color:#888}
+.event-booking-panel{padding:28px;background:#eeede9;position:sticky;top:100px}
+.event-booking-panel dl{margin:15px 0 30px}
+.event-booking-panel dl>div{padding:17px 0;border-bottom:1px solid #d3d2cf}
+.event-booking-panel dt,.shoot-facts dt{color:#777;font-size:11px;font-weight:400;letter-spacing:.03em;margin-bottom:6px}
+.event-booking-panel dd{font-size:14px;line-height:1.6;margin:0}
+.event-booking-panel .button{width:100%;justify-content:space-between;font-size:11px}
+.event-viewer-block{margin-top:25px;padding-top:25px;border-top:1px solid #ccc}
+.event-viewer-block>p:nth-child(2){font-size:13px}
+.event-small-note{font-size:11px;line-height:1.7;margin:20px 0 0}
+.event-unavailable h3{font-size:20px;font-weight:400;letter-spacing:-.03em}
+.event-unavailable p{font-size:13px;color:#666;line-height:1.6}
+.event-unavailable a{font-size:12px}
+.academy-lead-photo{position:relative;aspect-ratio:2.6;overflow:hidden;background:#222;margin-bottom:80px}
+.academy-lead-photo img{object-position:center 35%;filter:grayscale(1) brightness(.65)}
+.academy-photo-caption{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:flex-end;color:#fff;padding:40px;gap:40px}
+.academy-photo-caption>.eyebrow{max-width:180px;line-height:1.8;letter-spacing:.2em;margin:0}
+.academy-photo-caption>p{font-size:clamp(25px,3.4vw,50px);letter-spacing:-.05em;line-height:1.12;margin:0;font-weight:400}
+.academy-courses>.section-head{margin-bottom:40px}
+.academy-courses>.section-head h2{font-size:clamp(30px,4vw,46px);letter-spacing:-.05em;font-weight:400}
+.academy-course{padding:35px 0 50px;border-top:1px solid #bbb;margin-top:0;margin-bottom:30px;scroll-margin-top:110px}
+.academy-course-photo{position:relative;aspect-ratio:.78;overflow:hidden;background:#ddd}
+.academy-course-number{position:absolute;left:20px;top:14px;font-size:55px;letter-spacing:-.07em;color:#fff;line-height:1;font-weight:300}
+.academy-course-top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin:0 0 20px}
+.academy-price{font-size:21px;white-space:nowrap;letter-spacing:-.04em}
+.academy-course h2{font-size:clamp(32px,4vw,52px);letter-spacing:-.055em;font-weight:400;margin:0 0 20px}
+.academy-course-description{font-size:15px;line-height:1.85;max-width:590px;color:#555}
+.academy-course .muted{font-size:12px;line-height:1.8}
+.course-accordion.MuiAccordion-root{background:transparent;border-top:1px solid #d5d5d5;border-radius:0!important;margin:0!important}
+.course-accordion.MuiAccordion-root::before{display:none}
+.course-accordion .MuiAccordionSummary-root{padding:0;min-height:54px}
+.course-accordion .MuiAccordionSummary-content{font-size:13px;letter-spacing:.01em}
+.course-accordion .MuiAccordionDetails-root{padding:0 0 20px;color:#666;font-size:13px;line-height:1.8}
+.course-accordion ol{padding-left:18px;margin:0}
+.course-accordion .MuiAccordionDetails-root p{margin:4px 0}
+.academy-course-footer{display:flex;align-items:center;justify-content:space-between;gap:20px;border-top:1px solid #d5d5d5;padding-top:25px;margin-top:5px}
+.academy-info-note{border-top:1px solid #bbb;padding-top:45px;margin-top:30px;max-width:720px}
+.academy-info-note h2{font-size:clamp(34px,5vw,58px);font-weight:400;letter-spacing:-.05em;margin:25px 0}
+.academy-info-note>p{font-size:14px;line-height:1.8}
+.academy-info-note>p:last-child{font-size:11px;max-width:600px;margin-top:25px}
+.shoot-project{padding:35px 0 50px;border-top:1px solid #bbb;margin-top:0;margin-bottom:30px}
+.shoot-project-photo{display:block;position:relative;aspect-ratio:.96;background:#ddd;overflow:hidden}
+.shoot-project-photo>.tag{position:absolute;left:20px;top:20px;background:#f7f6f2;padding:8px 12px;font-size:10px;color:#111}
+.shoot-project-info{padding-top:18px}
+.shoot-project-info h2{font-size:clamp(32px,4vw,54px);letter-spacing:-.055em;font-weight:400;margin:30px 0 25px;line-height:1.05;max-width:500px}
+.shoot-project-info>p{max-width:510px;font-size:14px;line-height:1.8;color:#666}
+.shoot-facts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:28px 0 35px;padding-top:25px;border-top:1px solid #ccc}
+.shoot-facts dd{font-size:12px;line-height:1.7;margin:0}
+@media(max-width:1100px){.events-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.calendar-day{padding:8px;min-height:125px}.calendar-event{padding:6px}.academy-course-footer{align-items:flex-start;flex-direction:column}.event-booking-panel{padding:22px}.event-heading-row>p{max-width:260px}}
+@media(max-width:767px){.events-page,.event-detail-page,.academy-page,.shoots-page{padding-top:40px;padding-bottom:60px}.event-heading-row{display:block}.event-heading-row>p{margin-top:25px;max-width:none;font-size:13px}.event-page-intro,.academy-intro{margin-bottom:30px}.events-filter-grid{grid-template-columns:1fr 1fr;gap:14px;padding:22px 0}.events-filter-grid>.MuiTextField-root:first-child{grid-column:1/-1}.events-view-toolbar{align-items:flex-start;gap:12px}.events-view-toolbar>div{flex-direction:column-reverse;align-items:flex-end!important;gap:8px!important}.events-view-toolbar>.eyebrow{padding-top:12px;font-size:9px}.events-view-toolbar .MuiToggleButton-root{min-width:72px;font-size:11px}.event-reset{font-size:10px}.event-card-photo{aspect-ratio:1.3}.event-card-title h2{font-size:25px}.events-bottom-cta{display:block;margin-top:45px;padding-top:30px}.events-bottom-cta .button{margin-top:25px}.calendar-month{padding:12px}.calendar-month h2{font-size:19px}.calendar-day{padding:4px;min-height:90px}.calendar-day-number{font-size:10px;margin-bottom:5px}.calendar-weekdays span{padding:10px 5px;font-size:9px}.calendar-event{padding:4px;gap:3px}.calendar-event span,.calendar-event small{display:none}.calendar-event strong{font-size:8px;line-height:1.4}.event-back-link{margin-bottom:30px}.event-detail-heading .page-heading{font-size:clamp(38px,11vw,72px)}.event-detail-photo{aspect-ratio:1.12}.event-detail-copy{padding-top:30px}.event-detail-copy h2{font-size:30px}.event-detail-copy>p:last-child{font-size:14px}.event-booking-panel{position:static;padding:25px;margin-top:5px}.academy-lead-photo{aspect-ratio:1.05;margin-bottom:50px}.academy-photo-caption{padding:25px;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:25px}.academy-photo-caption>p{font-size:34px}.academy-photo-caption>.eyebrow{font-size:9px;max-width:none}.academy-courses>.section-head{align-items:flex-start;gap:15px;flex-direction:column}.academy-course{padding-top:20px;margin-bottom:10px}.academy-course-photo{aspect-ratio:1.3;max-height:370px}.academy-course-top{margin-top:5px}.academy-course h2{font-size:37px}.academy-course-footer{flex-direction:row;align-items:center;flex-wrap:wrap}.academy-course-footer>.eyebrow{font-size:9px}.academy-course-description{font-size:14px}.academy-info-note{padding-top:30px}.shoot-project{padding-top:20px}.shoot-project-photo{aspect-ratio:1.15}.shoot-project-info h2{font-size:42px;margin-top:20px}.shoot-project-info{padding-top:10px}.shoot-project-info>p{font-size:13px}.shoot-project-info>.d-flex .tag{font-size:9px}.shoot-facts{gap:20px 15px}}
+@media(prefers-reduced-motion:reduce){.event-card-photo img,.shoot-project-photo img{transition:none}}

@@ -1,0 +1,12 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { events, formatEventDate, isEventAvailable } from "@/data/events";
+import "@/components/events/events.css";
+
+export const metadata: Metadata = { title: "Съёмки", description: "Editorial, fashion и коммерческие проекты. Найдите следующую историю для своего портфолио." };
+
+export default function ShootsPage() {
+  const shoots = events.filter(event => event.type === "Съёмка");
+  return <main id="main-content" className="page-shell shoots-page"><header className="event-page-intro"><p className="eyebrow">IN FOCUS / СЪЁМОЧНЫЕ ПРОЕКТЫ</p><div className="event-heading-row"><h1 className="page-heading">У каждого кадра<br /><span>есть история.</span></h1><p className="muted">Editorial, fashion и коммерческие съёмки.<br />Станьте частью следующей.</p></div></header><section aria-label="Проекты съёмок">{shoots.map((shoot, index) => <article key={shoot.id} className="shoot-project row g-4 g-lg-5"><div className="col-md-6"><Link href={`/events/${shoot.id}`} className="shoot-project-photo image-wrap"><Image src={shoot.image} alt={`Съёмочный проект ${shoot.title}`} fill sizes="(max-width: 767px) 100vw, 50vw" /><span className="tag">{index === 0 ? "EDITORIAL / TFP" : "COMMERCIAL"}</span></Link></div><div className="col-md-6 shoot-project-info"><div className="d-flex justify-content-between align-items-center gap-3"><p className="eyebrow">0{index + 1} / {shoot.city}</p><span className="tag">{shoot.status}</span></div><h2>{shoot.title}</h2><p>{shoot.description}</p><dl className="shoot-facts"><div><dt>Съёмка</dt><dd>{formatEventDate(shoot.date)} · {shoot.time}</dd></div><div><dt>Локация</dt><dd>{shoot.venue}</dd></div><div><dt>Команда</dt><dd>{shoot.organizer}</dd></div><div><dt>Заявки до</dt><dd>{formatEventDate(shoot.deadline)}</dd></div></dl><div className="d-flex flex-wrap align-items-center gap-3">{isEventAvailable(shoot) && <Link href={`/casting?event=${shoot.id}`} className="button button-dark">Подать заявку ↗</Link>}<Link href={`/events/${shoot.id}`} className="text-link">Условия проекта ↗</Link></div></div></article>)}</section><p className="events-demo-note muted">Демонстрационные съёмочные проекты. Команда, даты и условия приведены как пример.</p><aside className="events-bottom-cta"><div><p className="eyebrow">ДЛЯ БРЕНДОВ И ФОТОГРАФОВ</p><h2>Ваша идея. Наши лица.</h2></div><Link href="/contact" className="button button-dark">Подобрать модель ↗</Link></aside></main>;
+}
