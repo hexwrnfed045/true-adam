@@ -1,0 +1,139 @@
+{
+  "license": "See per-image license: Unsplash License, CC BY 2.0, CC BY-SA 2.0, or CC BY-SA 4.0",
+  "license_url": "https://unsplash.com/license",
+  "notes": "Unsplash stock imagery illustrates fictional demo profiles and events. Depicted people are not project members and do not endorse the project. Files prefixed inspiration- are separately credited real inspiration references; never add them to the demo catalog. Balmain Paris 2016 licensed photography was not located; retain as a text reference only.",
+  "images": [
+    {
+      "file": "hero-runway.jpg",
+      "author": "Ben Iwara",
+      "description": "Models walking down an indoor runway in Lagos; illustrative runway image, not a Runway Models event.",
+      "source": "https://unsplash.com/photos/a-group-of-women-walking-down-a-runway-01W4Xbz3Ayk",
+      "image_url": "https://images.unsplash.com/photo-1733322992706-1210ca79f4df",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-01.jpg",
+      "author": "Pesce Huang",
+      "description": "Monochrome male fashion portrait in white blazer and chain. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/a-man-in-a-white-shirt-and-chain-necklace-AaqxwVW31QI",
+      "image_url": "https://images.unsplash.com/photo-1636450853867-7028b7487bce",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-02.jpg",
+      "author": "Baris Selcen",
+      "description": "Monochrome female fashion portrait in black turtleneck. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/woman-in-black-long-sleeve-shirt-E8oxtCiyvQs",
+      "image_url": "https://images.unsplash.com/photo-1597614456977-f8fdcb73e8a0",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-03.jpg",
+      "author": "Jay Soundo",
+      "description": "Monochrome female fashion portrait in dark attire. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/a-stylish-woman-poses-for-a-portrait-in-black-and-white-Pkocq2NKJeg",
+      "image_url": "https://images.unsplash.com/photo-1742893071804-635fd6f346a4",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-04.jpg",
+      "author": "Zahir Namane",
+      "description": "Male portrait in brown blazer and black turtleneck. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/man-wearing-brown-blazer-photo-Q2315trSznw",
+      "image_url": "https://images.unsplash.com/photo-1559582802-5fb941568a65",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-05.jpg",
+      "author": "alexanderafan",
+      "description": "Male model portrait in striped shirt. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/man-with-a-striped-shirt-poses-for-a-portrait-K1IfuvJDVpM",
+      "image_url": "https://images.unsplash.com/photo-1746789899907-2d2ecce345a8",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "model-06.jpg",
+      "author": "Abraham George",
+      "description": "Male fashion portrait in light gray suit. Stock photo for a fictional demo profile.",
+      "source": "https://unsplash.com/photos/a-man-in-a-suit-wwVtHt5Px18",
+      "image_url": "https://images.unsplash.com/photo-1669811860168-2c2874158dbd",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "backstage-01.jpg",
+      "author": "Mihaela Claudia Puscas",
+      "description": "Fashion designers preparing gold sequined garments backstage in Milan. Illustrative stock photo.",
+      "source": "https://unsplash.com/photos/fashion-designers-prepare-backstage-for-a-show-LY4iUq8IKFg",
+      "image_url": "https://images.unsplash.com/photo-1741946303119-d998a7bc66d9",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "backstage-02.jpg",
+      "author": "Mihaela Claudia Puscas",
+      "description": "Fashion professionals inspecting dresses before a show. Illustrative stock photo.",
+      "source": "https://unsplash.com/photos/fashion-professionals-inspect-dresses-before-a-show-7bfUz5T9JLE",
+      "image_url": "https://images.unsplash.com/photo-1741946303069-5884e5a6f793",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "editorial-01.jpg",
+      "author": "Nicolas Ladino Silva",
+      "description": "Contemporary menswear portrait: black suit and sunglasses. Illustrative editorial stock photo.",
+      "source": "https://unsplash.com/photos/a-man-in-a-black-suit-and-sunglasses-holding-a-bag-etgBglCmpg8",
+      "image_url": "https://images.unsplash.com/photo-1772757844633-0f1e20b8a199",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "academy-01.jpg",
+      "author": "Bave Pictures",
+      "description": "Studio fashion model in brown coat and white shirt. Illustrative academy portrait.",
+      "source": "https://unsplash.com/photos/man-in-brown-coat-and-white-shirt-SJDWOw4FKeo",
+      "image_url": "https://images.unsplash.com/photo-1630328311029-6f8b81627fc3",
+      "license": "Unsplash License"
+    },
+    {
+      "file": "inspiration-sean-opry.jpg",
+      "author": "Sara Cimino",
+      "description": "Sean O'Pry @ Pignatelli, 15 January 2011. Real visual inspiration reference; not a participant in this project.",
+      "source": "https://commons.wikimedia.org/wiki/File:Sean_Opry.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/1/1f/Sean_Opry.jpg",
+      "license": "Creative Commons Attribution 2.0 Generic (CC BY 2.0)",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "changes": "No pixel changes. Responsive CSS cropping may be applied by the UI.",
+      "required_credit": "Sean O’Pry — photo: Sara Cimino / Wikimedia Commons, CC BY 2.0. Cropped for layout."
+    },
+    {
+      "file": "inspiration-chico.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/0/07/Francisco_Lachowski_2011.jpg",
+      "author": "Sara Cimino",
+      "description": "Francisco (Chico) Lachowski at Ermanno Scervino backstage, 16 January 2011. Real visual reference, not project participant.",
+      "source": "https://commons.wikimedia.org/wiki/File:Francisco_Lachowski_2011.jpg",
+      "license": "Creative Commons Attribution 2.0 Generic (CC BY 2.0)",
+      "license_url": "https://creativecommons.org/licenses/by/2.0/",
+      "required_credit": "Chico Lachowski — photo: Sara Cimino / Wikimedia Commons, CC BY 2.0. Cropped and displayed in grayscale for layout.",
+      "changes": "Original pixels retained. Responsive UI may crop and display in grayscale; attribution must identify these changes."
+    },
+    {
+      "file": "inspiration-jordan.jpg",
+      "image_url": "https://upload.wikimedia.org/wikipedia/commons/6/63/Jordan-barrett-mbfw-march-2022-fashion-week-berlin.jpg",
+      "author": "Stefan Heesch / Nordfriisk Photography",
+      "description": "Jordan Barrett for Justin Cassin, Mercedes-Benz Fashion Week Berlin, 15 March 2022. Real visual reference, not project participant.",
+      "source": "https://commons.wikimedia.org/wiki/File:Jordan-barrett-mbfw-march-2022-fashion-week-berlin.jpg",
+      "license": "Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)",
+      "license_url": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "required_credit": "Jordan Barrett — photo: Stefan Heesch / Nordfriisk Photography / Wikimedia Commons, CC BY-SA 4.0. Cropped and displayed in grayscale for layout. Image adaptations remain CC BY-SA 4.0.",
+      "changes": "Original pixels retained. Responsive UI may crop and display in grayscale; attribution must identify these changes."
+    },
+    {
+      "file": "inspiration-david.jpg",
+      "author": "Walterlan Papetti",
+      "description": "David Gandy, 16 June 2013. Real visual reference, not a project participant.",
+      "source": "https://commons.wikimedia.org/wiki/File:David_Gandy.jpg",
+      "image_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a3/David_Gandy.jpg/500px-David_Gandy.jpg",
+      "license": "Creative Commons Attribution-ShareAlike 2.0 Generic (CC BY-SA 2.0)",
+      "license_url": "https://creativecommons.org/licenses/by-sa/2.0/",
+      "changes": "Downloaded Wikimedia 500 px thumbnail. UI may crop for layout.",
+      "required_credit": "David Gandy — photo: Walterlan Papetti / Wikimedia Commons, CC BY-SA 2.0. Cropped for layout. Image adaptations remain CC BY-SA 2.0."
+    }
+  ]
+}
