@@ -1,0 +1,5 @@
+import Link from "next/link";
+import { RequestForm, FormImage } from "@/components/request-form";
+import { events, isEventAvailable, formatEventDate } from "@/data/events";
+export const metadata = { title: "Кастинги и заявки" };
+export default function CastingPage() { return <main id="main-content" className="page-shell form-page"><div className="page-heading"><p className="eyebrow">RUNWAY CASTING / ТВОЯ НОВАЯ ГЛАВА</p><h1>Начни свою историю.</h1><p>Опыт не определяет потенциал. Расскажи нам о себе и выбери возможность, которая подходит именно тебе.</p></div><div className="form-layout"><aside className="form-aside"><p className="eyebrow">ОТКРЫТЫЕ ВОЗМОЖНОСТИ</p><h2>Мы ищем характер.<br />Возможно, твой.</h2><p>Для первого знакомства достаточно естественных фотографий, интереса к индустрии и желания пробовать. Профессиональное портфолио необязательно.</p><div className="contact-details">{events.filter(e => e.type === "Кастинг" && isEventAvailable(e)).map(e => <div key={e.id}><small>{formatEventDate(e.date)} · {e.city}</small><Link className="text-link" href={`/events/${e.id}`}>{e.title} ↗</Link></div>)}</div><FormImage /></aside><RequestForm /></div></main>; }
