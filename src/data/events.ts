@@ -28,10 +28,31 @@ export const events: RunwayEvent[] = [
   { id: "first-light", title: "FIRST LIGHT", date: "2026-10-17", time: "17:00", city: "Алматы", venue: "Runway Studio", type: "Показ", image: "/images/backstage-01.jpg", openToPublic: false, status: "Завершено", description: "Осенний показ дебютных коллекций. Встреча нового поколения дизайнеров и моделей, завершившая октябрьскую программу Runway. Событие прошло; новые заявки не принимаются.", requirements: ["Мероприятие завершено"], deadline: "2026-10-10", organizer: "Runway Models", seats: 0 },
 ];
 
-export const DEMO_TODAY = "2026-10-30";
+export const EVENT_TIME_ZONE = "Asia/Qyzylorda";
 
-export function isEventAvailable(event: RunwayEvent) {
-  return event.status === "Открыт набор" && event.date >= DEMO_TODAY && event.deadline >= DEMO_TODAY;
+/** Current calendar date in the platform's timezone; safe in both server and client code. */
+export function getToday(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: EVENT_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(now);
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find(part => part.type === type)!.value;
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
+/** Effective status also accounts for dates, instead of relying on a stale editorial label. */
+export function getEventStatus(event: RunwayEvent, today = getToday()): RunwayEvent["status"] {
+  if (event.status === "Отменено") return "Отменено";
+  if (event.status === "Завершено" || event.date < today) return "Завершено";
+  if (event.status === "Закрыто" || event.deadline < today) return "Закрыто";
+  return "Открыт набор";
+}
+
+export function isEventAvailable(event: RunwayEvent, today = getToday()) {
+  return getEventStatus(event, today) === "Открыт набор";
+}
+
+export function isViewerRegistrationAvailable(event: RunwayEvent, today = getToday()) {
+  return isEventAvailable(event, today) && event.type === "Показ" && event.openToPublic && event.seats > 0;
 }
 
 export function formatEventDate(date: string, options?: Intl.DateTimeFormatOptions) {

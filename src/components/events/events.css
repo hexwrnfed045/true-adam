@@ -106,3 +106,74 @@
 @media(max-width:1100px){.events-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.calendar-day{padding:8px;min-height:125px}.calendar-event{padding:6px}.academy-course-footer{align-items:flex-start;flex-direction:column}.event-booking-panel{padding:22px}.event-heading-row>p{max-width:260px}}
 @media(max-width:767px){.events-page,.event-detail-page,.academy-page,.shoots-page{padding-top:40px;padding-bottom:60px}.event-heading-row{display:block}.event-heading-row>p{margin-top:25px;max-width:none;font-size:13px}.event-page-intro,.academy-intro{margin-bottom:30px}.events-filter-grid{grid-template-columns:1fr 1fr;gap:14px;padding:22px 0}.events-filter-grid>.MuiTextField-root:first-child{grid-column:1/-1}.events-view-toolbar{align-items:flex-start;gap:12px}.events-view-toolbar>div{flex-direction:column-reverse;align-items:flex-end!important;gap:8px!important}.events-view-toolbar>.eyebrow{padding-top:12px;font-size:9px}.events-view-toolbar .MuiToggleButton-root{min-width:72px;font-size:11px}.event-reset{font-size:10px}.event-card-photo{aspect-ratio:1.3}.event-card-title h2{font-size:25px}.events-bottom-cta{display:block;margin-top:45px;padding-top:30px}.events-bottom-cta .button{margin-top:25px}.calendar-month{padding:12px}.calendar-month h2{font-size:19px}.calendar-day{padding:4px;min-height:90px}.calendar-day-number{font-size:10px;margin-bottom:5px}.calendar-weekdays span{padding:10px 5px;font-size:9px}.calendar-event{padding:4px;gap:3px}.calendar-event span,.calendar-event small{display:none}.calendar-event strong{font-size:8px;line-height:1.4}.event-back-link{margin-bottom:30px}.event-detail-heading .page-heading{font-size:clamp(38px,11vw,72px)}.event-detail-photo{aspect-ratio:1.12}.event-detail-copy{padding-top:30px}.event-detail-copy h2{font-size:30px}.event-detail-copy>p:last-child{font-size:14px}.event-booking-panel{position:static;padding:25px;margin-top:5px}.academy-lead-photo{aspect-ratio:1.05;margin-bottom:50px}.academy-photo-caption{padding:25px;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:25px}.academy-photo-caption>p{font-size:34px}.academy-photo-caption>.eyebrow{font-size:9px;max-width:none}.academy-courses>.section-head{align-items:flex-start;gap:15px;flex-direction:column}.academy-course{padding-top:20px;margin-bottom:10px}.academy-course-photo{aspect-ratio:1.3;max-height:370px}.academy-course-top{margin-top:5px}.academy-course h2{font-size:37px}.academy-course-footer{flex-direction:row;align-items:center;flex-wrap:wrap}.academy-course-footer>.eyebrow{font-size:9px}.academy-course-description{font-size:14px}.academy-info-note{padding-top:30px}.shoot-project{padding-top:20px}.shoot-project-photo{aspect-ratio:1.15}.shoot-project-info h2{font-size:42px;margin-top:20px}.shoot-project-info{padding-top:10px}.shoot-project-info>p{font-size:13px}.shoot-project-info>.d-flex .tag{font-size:9px}.shoot-facts{gap:20px 15px}}
 @media(prefers-reduced-motion:reduce){.event-card-photo img,.shoot-project-photo img{transition:none}}
+
+/* Calendar and filter refinements for current, archived and unavailable events. */
+.events-period-toolbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:20px;flex-wrap:wrap}
+.events-period-toolbar .MuiToggleButton-root{border-radius:0;text-transform:none;font-size:12px;min-height:42px;padding:8px 15px;color:#111}
+.events-period-toolbar .Mui-selected{background:#111!important;color:#fff!important}
+.events-period-toolbar>p{font-size:11px;margin:0;line-height:1.6}
+.events-filter-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.events-filter-grid>.MuiTextField-root:first-child{grid-column:span 2}
+.events-filter-grid>.MuiTextField-root{min-width:0}
+.event-filter-error{font-size:12px;color:#a32121;margin:12px 0 0}
+.event-card-state-open{background:#f7f6f2;color:#111}
+.calendar-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.calendar-today{margin-right:10px;font-size:11px}
+.calendar-day-events{min-width:0}
+.calendar-mobile-date{display:none}
+.calendar-day-today{background:#e8e7e2}
+.calendar-day-today>.calendar-day-number{font-weight:700;color:#111}
+.calendar-event{min-height:72px;justify-content:center}
+.calendar-event:focus-visible{outline:3px solid #111;outline-offset:3px}
+.calendar-empty{padding:32px 20px;border-top:1px solid #ccc;text-align:center}
+.calendar-empty h3{font-size:21px;font-weight:400;letter-spacing:-.025em;margin:0 0 12px}
+.calendar-empty p{font-size:12px;line-height:1.6;color:#666;margin:0 0 20px}
+.calendar-empty .button{font-size:11px;white-space:normal}
+.event-booking-panel .button{white-space:normal;line-height:1.6}
+.academy-course-footer>div>.eyebrow{margin:0 0 12px;line-height:1.7}
+.academy-course-footer .tag{font-size:10px;line-height:1.6;white-space:normal}
+.academy-course-footer>.button{white-space:normal;line-height:1.6;text-align:left;flex-shrink:0}
+.events-page .button,.academy-page .button,.shoots-page .button{min-height:44px}
+.event-requirements h2.eyebrow{font-weight:400;font-size:11px}
+@media(max-width:1100px){.events-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.academy-course-footer>.button{flex-shrink:1}}
+@media(max-width:767px){
+  .events-period-toolbar{display:block;margin-bottom:20px}
+  .events-period-toolbar>p{margin-top:16px;font-size:10px}
+  .events-period-toolbar .MuiToggleButton-root{padding:8px 12px;font-size:11px}
+  .events-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .events-filter-grid>.MuiTextField-root:first-child{grid-column:1/-1}
+  .calendar-month{flex-wrap:wrap;gap:8px}
+  .calendar-month h2{font-size:20px;line-height:1.5}
+  .calendar-controls{width:100%;justify-content:flex-end}
+  .calendar-today{margin-right:auto}
+  .calendar-weekdays{display:none}
+  .calendar-grid{display:block}
+  .calendar-day{display:block;padding:18px 15px;min-height:0;border-right:0}
+  .calendar-day-empty,.calendar-day-no-events{display:none}
+  .calendar-day-number{text-align:left;font-size:12px;margin-bottom:12px}
+  .calendar-number-short{display:none}
+  .calendar-mobile-date{display:inline;text-transform:capitalize}
+  .calendar-day-events{display:grid;gap:8px}
+  .calendar-event{padding:12px 14px;min-height:88px;gap:7px;margin:0;word-break:normal;overflow-wrap:anywhere}
+  .calendar-event span,.calendar-event small{display:block;font-size:10px;line-height:1.5}
+  .calendar-event strong{font-size:17px;line-height:1.3}
+  .calendar-empty{padding:30px 18px}
+  .calendar-empty h3{font-size:21px;line-height:1.4}
+  .academy-course-footer{align-items:flex-start;gap:20px}
+  .academy-course-footer>.button{width:100%;justify-content:space-between}
+  .academy-course-footer>div{width:100%}
+  .event-booking-panel{padding:22px}
+  .event-card-meta{flex-wrap:wrap;font-size:10px}
+}
+@media(max-width:380px){
+  .events-filter-grid{grid-template-columns:minmax(0,1fr)}
+  .events-filter-grid>.MuiTextField-root:first-child{grid-column:auto}
+  .events-view-toolbar{flex-direction:column;align-items:stretch}
+  .events-view-toolbar>div{flex-direction:row!important;justify-content:space-between;align-items:center!important;flex-wrap:wrap}
+  .event-heading-row .page-heading{font-size:40px}
+  .event-detail-heading .page-heading{font-size:38px}
+  .academy-course h2{font-size:33px}
+  .academy-course-top{flex-wrap:wrap}
+  .shoot-project-info h2{font-size:35px}
+  .shoot-facts{grid-template-columns:1fr}
+}
