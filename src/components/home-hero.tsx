@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import IconButton from "@mui/material/IconButton";
@@ -16,6 +16,7 @@ const inspirations = [
 
 export default function HomeHero() {
   const [active, setActive] = useState(0);
+  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
   const model = inspirations[active];
   const move = (direction: number) => setActive((current) => (current + direction + inspirations.length) % inspirations.length);
 
@@ -35,10 +36,19 @@ export default function HomeHero() {
           <span className="photo-vertical">THE ICONS / RUNWAY INSPIRATION</span>
           <div className="hero-photo-tag hero-famous-name"><div aria-live="polite"><small>ХАРАКТЕР ВНЕ ВРЕМЕНИ</small><strong>{model.name}</strong></div><div className="hero-famous-arrows"><IconButton aria-label="Предыдущая известная модель" onClick={() => move(-1)}>←</IconButton><IconButton aria-label="Следующая известная модель" onClick={() => move(1)}>→</IconButton></div></div>
         </div>
-        <div className="hero-famous-tabs" role="group" aria-label="Выберите известную модель">{inspirations.map((item, index) => <button key={item.name} type="button" aria-pressed={active === index} aria-controls="hero-famous-photo" onClick={() => setActive(index)}><span>{String(index + 1).padStart(2, "0")}</span>{item.name}</button>)}</div>
+        <div className="hero-famous-tabs" role="group" aria-label="Выберите известную модель">{inspirations.map((item, index) => <button key={item.name} ref={element => { buttons.current[index] = element; }} onKeyDown={event => {
+            if (event.altKey || event.ctrlKey || event.metaKey) return;
+            let next = index;
+            if (event.key === "ArrowRight") next = (index + 1) % inspirations.length;
+            else if (event.key === "ArrowLeft") next = (index - 1 + inspirations.length) % inspirations.length;
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = inspirations.length - 1;
+            else return;
+            event.preventDefault(); setActive(next); buttons.current[next]?.focus();
+          }} type="button" aria-pressed={active === index} aria-controls="hero-famous-photo" onClick={() => setActive(index)}><span>{String(index + 1).padStart(2, "0")}</span>{item.name}</button>)}</div>
         <div className="hero-famous-credits">
           <p>Визуальные референсы · не участники проекта</p>
-          <small>Фото: {model.author} / <a href={model.source} target="_blank" rel="noreferrer">Wikimedia Commons</a> · <a href={model.licenseUrl} target="_blank" rel="noreferrer">{model.license}</a>. Кадрировано, ч/б.{model.shareAlike && ` Адаптация: ${model.license}.`}</small>
+          <small>Фото: {model.author} / <a href={model.source} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · <a href={model.licenseUrl} target="_blank" rel="noopener noreferrer">{model.license}</a>. Кадрировано, ч/б.{model.shareAlike && ` Адаптация: ${model.license}.`}</small>
         </div>
       </div>
     </div>

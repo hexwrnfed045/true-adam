@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { models } from "@/data/models";
 import FavoriteButton from "@/components/models/FavoriteButton";
+import PortfolioGallery from "@/components/models/PortfolioGallery";
 import "@/components/models/models.css";
 
 export function generateStaticParams() { return models.map((model) => ({ id: model.id })); }
@@ -28,6 +29,6 @@ export default async function ModelPage({ params }: { params: Promise<{ id: stri
         <Link className="button button-dark profile-invite" href={`/contact?model=${model.id}`}>Пригласить на съёмку <span>↗</span></Link><p className="profile-small muted">Откроется форма запроса с выбранной моделью.</p>
       </div>
     </div>
-    <section className="profile-gallery"><div className="section-head"><div><p className="eyebrow">Selected frames</p><h2>В кадре</h2></div><span className="muted">Иллюстративное портфолио / 02</span></div><div className="row g-4">{model.gallery.map((image, index) => <div className="col-6" key={image}><div className="profile-gallery-image"><Image src={image} alt={`Иллюстративный кадр ${index + 1} портфолио ${model.name}`} fill sizes="50vw" /></div></div>)}</div><p className="profile-small muted">Фотографии служат визуальными примерами и могут изображать разных людей. Реальные портфолио будут добавлены командой.</p></section>
+    <section className="profile-gallery"><div className="section-head"><div><p className="eyebrow">Selected frames</p><h2>В кадре</h2></div><span className="muted">Иллюстративное портфолио / 02</span></div><PortfolioGallery images={model.gallery} name={model.name} /><p className="profile-small muted">Фотографии служат визуальными примерами и могут изображать разных людей. Реальные портфолио будут добавлены командой.</p></section>
   </main>;
 }
