@@ -1,4 +1,3 @@
-import Link from "next/link";
-import { Alert } from "@mui/material";
-export const metadata = { title: "Управление · прототип" };
-export default function Page() { return <main id="main-content" className="page-shell account-section"><div className="page-heading"><p className="eyebrow">RUNWAY / УПРАВЛЕНИЕ</p><h1>За кулисами.</h1><p>Прототип пространства модератора и команды платформы.</p></div><Alert severity="info">Административные действия недоступны в демонстрационной версии. Для работы с публикациями, пользователями и ролями нужна серверная авторизация.</Alert><div className="row g-4 mt-4">{[["01", "Публикации", "Проверка профилей, событий и backstage перед публикацией."], ["02", "Заявки", "Рассмотрение заявок на назначенные мероприятия и курсы."], ["03", "Команда и роли", "Подтверждение профессиональных ролей и управление доступом."]].map(([n, title, text]) => <div className="col-md-4" key={n}><div className="account-profile h-100"><p className="eyebrow">{n} / СКОРО</p><h2 style={{ fontSize: 25 }}>{title}</h2><p className="muted" style={{ fontSize: 13 }}>{text}</p><span className="tag">Недоступно в прототипе</span></div></div>)}</div><Link href="/account" className="text-link mt-5">← Вернуться в кабинет</Link></main>; }
+import { Admin } from '@/components/admin';
+export const metadata = { title: 'Управление агентством', robots: { index: false, follow: false } };
+export default function Page() { return <Admin />; }

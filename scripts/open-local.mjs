@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 
+if (Number(process.versions.node.split('.')[0]) < 24) throw new Error('Install Node.js 24 LTS to use local application storage.');
 const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const require = createRequire(import.meta.url);
 const stateFile = path.join(root, '.runway-local.json');
@@ -12,7 +13,7 @@ const noOpen = process.argv.includes('--no-open');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
 async function isReady(url) {
-  try { const response = await fetch(url, { signal: AbortSignal.timeout(1500) }); return response.ok && (await response.text()).includes('Runway Models'); } catch { return false; }
+  try { const response = await fetch(`${url}/api/health/`, { signal: AbortSignal.timeout(1500), cache: 'no-store' }); return response.ok && (await response.json()).ok === true; } catch { return false; }
 }
 function openBrowser(url) {
   if (noOpen) return;

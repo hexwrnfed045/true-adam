@@ -42,3 +42,9 @@ next-env.d.ts
 
 # Local launcher state
 /.runway-local.json
+
+# Private local application storage
+/.runway-data/
+
+# Share only the configuration template, never real .env files
+!.env.example

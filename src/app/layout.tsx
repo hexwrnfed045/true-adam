@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru">
+    <html lang="ru" data-scroll-behavior="smooth">
       <body><AppRouterCacheProvider options={{ key: "runway", enableCssLayer: false }}><Providers><a className="skip-link" href="#main-content">К содержимому</a><Header />{children}<Footer /></Providers></AppRouterCacheProvider></body>
     </html>
   );

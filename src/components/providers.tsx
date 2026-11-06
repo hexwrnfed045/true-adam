@@ -1,4 +1,5 @@
 "use client";
+import { SessionProvider } from "./session-provider";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 const theme = createTheme({
   palette: { primary: { main: "#171715" }, background: { default: "#f7f7f2", paper: "#f7f7f2" }, text: { primary: "#171715", secondary: "#66665f" } },
@@ -12,4 +13,4 @@ const theme = createTheme({
     MuiChip: { styleOverrides: { root: { borderRadius: 0 } } },
   },
 });
-export function Providers({ children }: { children: React.ReactNode }) { return <ThemeProvider theme={theme}>{children}</ThemeProvider>; }
+export function Providers({ children }: { children: React.ReactNode }) { return <ThemeProvider theme={theme}><SessionProvider>{children}</SessionProvider></ThemeProvider>; }

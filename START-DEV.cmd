@@ -11,7 +11,7 @@ where npm.cmd >nul 2>nul
 if errorlevel 1 goto missing
 where node.exe >nul 2>nul
 if errorlevel 1 goto missing
-node -e "if(Number(process.versions.node.split('.')[0])<20)process.exit(1)"
+node -e "if(Number(process.versions.node.split('.')[0])<24)process.exit(1)"
 if errorlevel 1 goto missing
 if exist node_modules\next\dist\bin\next goto start
 echo Installing project dependencies. First launch requires internet...

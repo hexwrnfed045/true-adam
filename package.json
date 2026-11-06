@@ -5,10 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node scripts/serve.mjs",
+    "start": "next start --hostname 127.0.0.1",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "local": "node scripts/open-local.mjs"
+    "local": "node scripts/open-local.mjs",
+    "admin": "node scripts/manage-admin.mjs",
+    "test:unit": "node --test tests/unit.test.mjs",
+    "test:integration": "node tests/integration.mjs"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -19,14 +22,19 @@
     "bootstrap": "^5.3.8",
     "next": "16.4.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "typescript": "^5"
-  }
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "type": "module"
 }
