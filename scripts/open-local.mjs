@@ -13,7 +13,21 @@ const noOpen = process.argv.includes('--no-open');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
 async function isReady(url) {
-  try { const response = await fetch(`${url}/api/health/`, { signal: AbortSignal.timeout(1500), cache: 'no-store' }); return response.ok && (await response.json()).ok === true; } catch { return false; }
+  try {
+    const response = await fetch(`${url}/api/health/`, {
+      signal: AbortSignal.timeout(1500),
+      cache: 'no-store',
+    });
+    if (!response.ok || (await response.json()).ok !== true) return false;
+    const homepage = await fetch(`${url}/`, {
+      signal: AbortSignal.timeout(60000),
+      cache: 'no-store',
+    });
+    const html = await homepage.text();
+    return homepage.ok && html.includes('id="main-content"');
+  } catch {
+    return false;
+  }
 }
 function openBrowser(url) {
   if (noOpen) return;
@@ -52,7 +66,7 @@ async function main() {
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
   console.log(`\nRUNWAY MODELS - local development\n${url}\nKeep this terminal open. Stop: Ctrl+C.\n`);
-  const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--hostname', '127.0.0.1', '--port', String(port)], { cwd: root, stdio: 'inherit', windowsHide: true });
+  const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], { cwd: root, stdio: 'inherit', windowsHide: true });
   let exited = false;
   const clean = () => {
     try { if (JSON.parse(readFileSync(stateFile, 'utf8')).pid === child.pid) unlinkSync(stateFile); } catch { /* already removed */ }

@@ -2,10 +2,11 @@
 setlocal
 cd /d "%~dp0"
 title Runway Models - Local
-where node.exe >nul 2>nul
-if not errorlevel 1 goto checknpm
-if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\nodejs\node-v24.22.1-win-x64\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs\node-v24.22.1-win-x64;%PATH%"
+if exist "%ProgramFiles%\nodejs\node.exe" if exist "%ProgramFiles%\nodejs\npm.cmd" (
+  set "PATH=%ProgramFiles%\nodejs;%PATH%"
+  goto checknpm
+)
+if exist "%LOCALAPPDATA%\Programs\nodejs\node-v24.22.1-win-x64\node.exe" if exist "%LOCALAPPDATA%\Programs\nodejs\node-v24.22.1-win-x64\npm.cmd" set "PATH=%LOCALAPPDATA%\Programs\nodejs\node-v24.22.1-win-x64;%PATH%"
 :checknpm
 where npm.cmd >nul 2>nul
 if errorlevel 1 goto missing
