@@ -200,9 +200,9 @@ describe('calendar dates and Kazakhstan timezone', () => {
     assert.equal(isViewerRegistrationAvailable(event(), '2030-05-16'), false);
   });
 });
-import { applicationDefaults } from '../src/lib/application-ui.ts';
+import { applicationDefaults, defaultApplicationFilters, filterApplications } from '../src/lib/application-ui.ts';
 
-describe('application autofill', () => {
+describe('application autofill and list controls', () => {
   const user = { id: 'member', name: 'Имя из профиля', city: 'Алматы' };
   const records = [
     { id: 'old-model', userId: user.id, type: 'model', createdAt: '2026-01-01', name: 'Анна', city: 'Алматы', phone: '+77001111111', age: 25, height: 180, measurements: '90 / 60 / 90', description: 'Опыт модели', status: 'submitted', targetId: null, title: 'Анкета', reference: 'RW-1', email: 'a@example.test' },
@@ -227,5 +227,22 @@ describe('application autofill', () => {
     const collaboration = { ...records[0], type: 'collaboration', createdAt: '2027-01-01', phone: '+77008888888', description: 'Бюджет проекта' };
     assert.equal(applicationDefaults(user, [...records, collaboration], 'model').phone, '+77002222222');
     assert.equal(applicationDefaults(user, [...records, collaboration], 'collaboration').description, '');
+  });
+
+  it('combines type, status, city, project and case-insensitive search', () => {
+    const filtered = filterApplications(records, { ...defaultApplicationFilters, type: 'course', status: 'accepted', city: 'Астана', project: 'course:course-one', query: '  БОРИС ' });
+    assert.deepEqual(filtered.map(item => item.id), ['new-course']);
+    assert.equal(filterApplications(records, { ...defaultApplicationFilters, type: 'model', project: 'course:course-one' }).length, 0);
+    assert.equal(filterApplications(records, defaultApplicationFilters).length, records.length);
+  });
+
+  it('sorts without mutating the source and puts missing ages last in either direction', () => {
+    const ids = sort => filterApplications(records, { ...defaultApplicationFilters, sort }).map(item => item.id);
+    assert.deepEqual(ids('age-asc'), ['other-model', 'old-model', 'new-course']);
+    assert.deepEqual(ids('age-desc'), ['old-model', 'other-model', 'new-course']);
+    assert.deepEqual(ids('newest'), ['other-model', 'new-course', 'old-model']);
+    assert.deepEqual(ids('oldest'), ['old-model', 'new-course', 'other-model']);
+    assert.deepEqual(ids('name'), ['old-model', 'new-course', 'other-model']);
+    assert.equal(records[0].id, 'old-model');
   });
 });
