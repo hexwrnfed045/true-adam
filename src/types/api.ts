@@ -1,5 +1,14 @@
 export type UserRole = "member" | "admin";
-export interface User { id: string; name: string; email: string; city: string; role: UserRole; createdAt: string; }
+export interface ProfileFields {
+  phone: string;
+  birthDate: string;
+  height: number | null;
+  chest: number | null;
+  waist: number | null;
+  hips: number | null;
+  experience: string;
+}
+export interface User extends Partial<ProfileFields> { id: string; name: string; email: string; city: string; role: UserRole; createdAt: string; }
 export type ApplicationType = "model" | "viewer" | "course" | "collaboration";
 export type ApplicationStatus = "submitted" | "reviewing" | "accepted" | "rejected" | "withdrawn" | "waiting";
 export interface Photo { id: string; url: string; name: string; size: number; type: string; }
@@ -14,7 +23,7 @@ export interface Application {
 export interface ApiError { error: string; fieldErrors?: Record<string, string>; }
 export interface RegisterInput { name: string; email: string; password: string; city: string; consent: boolean; }
 export interface LoginInput { email: string; password: string; }
-export interface ProfileInput { name: string; city: string; }
+export interface ProfileInput extends Partial<ProfileFields> { name: string; city: string; email?: string; }
 export interface PasswordInput { currentPassword: string; newPassword: string; }
 export interface ApplicationInput {
   type: ApplicationType; targetId: string | null; modelId: string | null;

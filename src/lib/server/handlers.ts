@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { normalizeEmail, validateRegister, validateLogin, validateProfile, validatePasswordChange, validateApplicationFields, APPLICATION_STATUSES } from "@/lib/validation";
+import { validateRegister, validateLogin, validateProfile, validatePasswordChange, validateApplicationFields, APPLICATION_STATUSES } from "@/lib/validation";
 import { models } from "@/data/models";
 import type { ApplicationStatus, User } from "@/types/api";
 import { applicationById, createApplication, idempotentApplication, listApplications, privatePhoto, reviewApplication, validateApplicationTarget, withdrawApplication } from "./applications";
-import { createSession, deleteSession, hashPassword, publicUser, requireAdmin, requireUser, sessionCookie, sessionUser, userByEmail, userById, verifyPassword } from "./auth";
+import { createSession, deleteSession, hashPassword, ownUser, publicUser, requireAdmin, requireUser, sessionCookie, sessionUser, userByEmail, userById, verifyPassword } from "./auth";
 import { database, transaction, uploadsDirectory } from "./db";
 import { ApiFailure, assertOrigin, digest, handle, json, rateLimit, readJson, validated } from "./http";
 import { applicationFingerprint, preparePhotos, readMultipart } from "./uploads";
@@ -18,17 +18,64 @@ export function authRegister(request: Request) { return handle(async () => {
   mutation(request); rateLimit("registration:local", 20, 60 * minute); const input = validated(validateRegister(await readJson(request)));
   if (userByEmail(input.email)) throw new ApiFailure(409, "Аккаунт с этим email уже существует.", { email: "Используйте вход или другой email." });
   const passwordHash = await hashPassword(input.password);
-  const result = transaction(() => { if (userByEmail(input.email)) throw new ApiFailure(409, "Аккаунт с этим email уже существует."); const id = randomUUID(); database().prepare("INSERT INTO users(id,name,email,password_hash,city,role,created_at) VALUES(?,?,?,?,?,'member',?)").run(id, input.name, input.email, passwordHash, input.city, new Date().toISOString()); return { user: publicUser(userById(id)!), token: createSession(id, request) }; });
+  const result = transaction(() => { if (userByEmail(input.email)) throw new ApiFailure(409, "Аккаунт с этим email уже существует."); const id = randomUUID(); database().prepare("INSERT INTO users(id,name,email,password_hash,city,role,created_at) VALUES(?,?,?,?,?,'member',?)").run(id, input.name, input.email, passwordHash, input.city, new Date().toISOString()); return { user: ownUser(userById(id)!), token: createSession(id, request) }; });
   return json({ user: result.user }, 201, { "Set-Cookie": sessionCookie(request, result.token) });
 }); }
 export function authLogin(request: Request) { return handle(async () => {
   mutation(request); rateLimit("login:local", 120, 15 * minute); const input = validated(validateLogin(await readJson(request))); rateLimit(`login:${digest(input.email)}`, 12, 15 * minute);
   const row = userByEmail(input.email); const valid = await verifyPassword(input.password, row?.password_hash);
-  if (!row || !valid) throw new ApiFailure(401, "Неверный email или пароль."); const token = createSession(row.id, request);
-  return json({ user: publicUser(row) }, 200, { "Set-Cookie": sessionCookie(request, token) });
+  if (!row || !valid) throw new ApiFailure(401, "Неверный email или пароль.");
+  const result = transaction(() => {
+    const current = userById(row.id);
+    if (!current || current.email !== row.email || current.password_hash !== row.password_hash) {
+      throw new ApiFailure(401, "Неверный email или пароль.");
+    }
+    return { user: ownUser(current), token: createSession(current.id, request) };
+  });
+  return json({ user: result.user }, 200, { "Set-Cookie": sessionCookie(request, result.token) });
 }); }
 export function authLogout(request: Request) { return handle(() => { mutation(request); deleteSession(request); return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(request, null) }); }); }
-export function profileUpdate(request: Request) { return handle(async () => { const user = requireUser(request); mutation(request, user); const body = await readJson(request); if (body.email !== undefined && normalizeEmail(String(body.email)) !== user.email) throw new ApiFailure(422, "Email аккаунта нельзя изменить в этой форме.", { email: "Email доступен только для чтения." }); const input = validated(validateProfile(body)); database().prepare("UPDATE users SET name=?,city=? WHERE id=?").run(input.name, input.city, user.id); return json({ user: publicUser(userById(user.id)!) }); }); }
+export function profileUpdate(request: Request) { return handle(async () => {
+  const user = requireUser(request);
+  mutation(request, user);
+  const body = await readJson(request);
+  const input = validated(validateProfile(body));
+  const current = userById(user.id)!;
+  const newEmail = input.email !== current.email ? input.email : undefined;
+  if (newEmail !== undefined) {
+    const password = body.currentPassword;
+    if (typeof password !== "string" || !password || password.length > 128) {
+      throw new ApiFailure(422, "Подтвердите смену email текущим паролем.", { currentPassword: "Введите текущий пароль." });
+    }
+    rateLimit(`password:${user.id}`, 10, 60 * minute);
+    if (!(await verifyPassword(password, current.password_hash))) {
+      throw new ApiFailure(422, "Текущий пароль неверен.", { currentPassword: "Проверьте текущий пароль." });
+    }
+  }
+  const updated = transaction(() => {
+    const latest = userById(user.id)!;
+    if (newEmail !== undefined) {
+      if (latest.email !== current.email || latest.password_hash !== current.password_hash) {
+        throw new ApiFailure(409, "Данные для входа изменились. Обновите страницу и повторите попытку.");
+      }
+      if (userByEmail(newEmail)) throw new ApiFailure(409, "Аккаунт с этим email уже существует.", { email: "Укажите другой email." });
+    }
+    database().prepare(`
+      UPDATE users
+      SET name=?, city=?, email=?, phone=?, birth_date=?, height=?, chest=?, waist=?, hips=?, experience=?
+      WHERE id=?
+    `).run(
+      input.name, input.city, newEmail ?? latest.email, input.phone ?? latest.phone, input.birthDate ?? latest.birth_date,
+      input.height === undefined ? latest.height : input.height,
+      input.chest === undefined ? latest.chest : input.chest,
+      input.waist === undefined ? latest.waist : input.waist,
+      input.hips === undefined ? latest.hips : input.hips,
+      input.experience ?? latest.experience, user.id,
+    );
+    return ownUser(userById(user.id)!);
+  });
+  return json({ user: updated });
+}); }
 export function authPassword(request: Request) { return handle(async () => {
   const user = requireUser(request); mutation(request, user); rateLimit(`password:${user.id}`, 10, 60 * minute); const input = validated(validatePasswordChange(await readJson(request)));
   if (!(await verifyPassword(input.currentPassword, userById(user.id)!.password_hash))) throw new ApiFailure(422, "Текущий пароль неверен.", { currentPassword: "Проверьте текущий пароль." }); const passwordHash = await hashPassword(input.newPassword);

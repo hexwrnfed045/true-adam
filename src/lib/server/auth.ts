@@ -2,12 +2,27 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { database } from "./db";
 import { ApiFailure, digest } from "./http";
-import type { User } from "@/types/api";
+import type { ProfileFields, User } from "@/types/api";
 const scryptAsync = promisify(scrypt);
 const COOKIE = "runway-session";
 const SESSION_AGE = 30 * 24 * 60 * 60;
-type UserRow = { id: string; name: string; email: string; city: string; role: "member" | "admin"; created_at: string; password_hash: string; };
+type UserRow = Omit<ProfileFields, "birthDate"> & {
+  id: string; name: string; email: string; city: string; role: "member" | "admin";
+  created_at: string; password_hash: string; birth_date: string;
+};
 export function publicUser(row: UserRow): User { return { id: row.id, name: row.name, email: row.email, city: row.city, role: row.role, createdAt: row.created_at }; }
+export function ownUser(row: UserRow): User {
+  return {
+    ...publicUser(row),
+    phone: row.phone,
+    birthDate: row.birth_date,
+    height: row.height,
+    chest: row.chest,
+    waist: row.waist,
+    hips: row.hips,
+    experience: row.experience,
+  };
+}
 export function userByEmail(email: string) { return database().prepare("SELECT * FROM users WHERE email=? COLLATE NOCASE").get(email) as UserRow | undefined; }
 export function userById(id: string) { return database().prepare("SELECT * FROM users WHERE id=?").get(id) as UserRow | undefined; }
 export async function hashPassword(password: string) { const salt = randomBytes(16).toString("hex"); const key = await scryptAsync(password, salt, 64) as Buffer; return `scrypt$${salt}$${key.toString("hex")}`; }
@@ -24,7 +39,7 @@ export function requestToken(request: Request) {
 export function sessionUser(request: Request): User | null {
   const token = requestToken(request); if (!token) return null;
   const db = database(); const row = db.prepare("SELECT users.*,sessions.expires_at FROM sessions JOIN users ON users.id=sessions.user_id WHERE token_hash=?").get(digest(token)) as (UserRow & { expires_at: number }) | undefined;
-  if (!row) return null; if (row.expires_at <= Date.now()) { db.prepare("DELETE FROM sessions WHERE token_hash=?").run(digest(token)); return null; } return publicUser(row);
+  if (!row) return null; if (row.expires_at <= Date.now()) { db.prepare("DELETE FROM sessions WHERE token_hash=?").run(digest(token)); return null; } return ownUser(row);
 }
 export function requireUser(request: Request) { const user = sessionUser(request); if (!user) throw new ApiFailure(401, "Войдите в аккаунт, чтобы продолжить."); return user; }
 export function requireAdmin(request: Request) { const user = requireUser(request); if (user.role !== "admin") throw new ApiFailure(403, "Недостаточно прав."); return user; }

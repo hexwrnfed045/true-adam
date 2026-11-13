@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:net';
-import { existsSync, lstatSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -202,6 +202,35 @@ async function runSuite() {
   await request('profile role injection ignored', '/api/profile', { method: 'PATCH', actor: alice, body: { name: 'Алиса Новый Профиль', city: 'Астана', role: 'admin' } });
   const profile = (await request('profile updated', '/api/auth/me', { actor: alice })).data.user;
   assert.equal(profile.role, 'member'); assert.equal(profile.name, 'Алиса Новый Профиль'); assert.equal(profile.city, 'Астана');
+  const savedDetails = {
+    phone: '+7 701 555 66 77', birthDate: '2000-11-13', height: 178,
+    chest: 89, waist: 63, hips: 92, experience: 'Опыт подиума и съёмок',
+  };
+  const identity = { name: profile.name, city: profile.city };
+  await request('profile details can be saved', '/api/profile', {
+    method: 'PATCH', actor: alice, body: { ...identity, ...savedDetails },
+  });
+  const invalidDate = await request('future birth date is rejected', '/api/profile', {
+    method: 'PATCH', actor: alice, body: { ...identity, birthDate: '9999-01-01' }, expected: 422,
+  });
+  assert.ok(invalidDate.data.fieldErrors.birthDate);
+  const missingPassword = await request('changing login email requires current password', '/api/profile', {
+    method: 'PATCH', actor: alice, body: { ...identity, email: `changed-${suffix}@example.com` }, expected: 422,
+  });
+  assert.ok(missingPassword.data.fieldErrors.currentPassword);
+  await request('changing login email rejects duplicate account', '/api/profile', {
+    method: 'PATCH', actor: alice, body: { ...identity, email: bob.email, currentPassword: password }, expected: 409,
+  });
+  const updatedEmail = `changed-${suffix}@example.com`;
+  const updatedProfile = (await request('login email changes with current password', '/api/profile', {
+    method: 'PATCH', actor: alice, body: { ...identity, email: updatedEmail.toUpperCase(), currentPassword: password },
+  })).data.user;
+  assert.equal(updatedProfile.email, updatedEmail);
+  for (const [field, value] of Object.entries(savedDetails)) assert.equal(updatedProfile[field], value);
+  await request('old email no longer signs in', '/api/auth/login', {
+    method: 'POST', body: { email: alice.email, password }, expected: 401,
+  });
+  alice.email = updatedEmail;
   await request('photos required', '/api/applications', { method: 'POST', actor: alice, body: form(alice, {}, []), expected: 422 });
   await request('underage blocked', '/api/applications', { method: 'POST', actor: alice, body: form(alice, { age: '17' }), expected: 422 });
   await request('contact spoof blocked', '/api/applications', { method: 'POST', actor: alice, body: form(alice, { email: bob.email }), expected: 422 });
@@ -309,6 +338,8 @@ async function runSuite() {
   await startServer(port);
   const persistedUser = (await request('session survives server restart', '/api/auth/me', { actor: alice })).data.user;
   assert.equal(persistedUser.id, alice.id); assert.equal(persistedUser.name, 'Алиса Новый Профиль'); assert.equal(alice.cookie, cookieBeforeRestart);
+  for (const [field, value] of Object.entries(savedDetails)) assert.equal(persistedUser[field], value);
+  assert.equal(persistedUser.email, updatedEmail);
   const persisted = (await request('applications survive server restart', '/api/applications', { actor: alice })).data.applications;
   assert.equal(persisted.find(item => item.id === app.id).status, 'rejected');
   assert.equal(persisted.find(item => item.id === replacement.id).status, 'withdrawn');
@@ -317,6 +348,10 @@ async function runSuite() {
   assert.equal(persistedFavorites.userId, alice.id); assert.deepEqual(persistedFavorites.ids, ['arman-kim', 'eva-sokolova']);
   assert.equal((await request('admin role survives server restart', '/api/auth/me', { actor: admin })).data.user.role, 'admin');
   await request('admin access survives server restart', '/api/admin/applications', { actor: admin });
+  const adminUsers = (await request('private profile details stay out of admin user list', '/api/admin/users', { actor: admin })).data.users;
+  const adminViewOfAlice = adminUsers.find(person => person.id === alice.id);
+  assert.ok(adminViewOfAlice);
+  for (const field of Object.keys(savedDetails)) assert.equal(Object.hasOwn(adminViewOfAlice, field), false);
   await request('cross-user image isolation after restart', app.photos[0].url, { actor: bob, expected: 404 });
   await requestHTML('unknown model returns404', '/models/integration-unknown-model', 404);
   await requestHTML('unknown event returns404', '/events/integration-unknown-event', 404);
@@ -329,8 +364,35 @@ try {
   assert.ok(existsSync(path.join(root, '.next', 'BUILD_ID')), 'Production build missing. Run npm run build before npm run test:integration.');
   temporaryDirectory = mkdtempSync(path.join(tmpdir(), 'runway-integration-'));
   databaseDirectory = path.join(temporaryDirectory, '.runway-data');
+  mkdirSync(databaseDirectory);
+  const legacyDbPath = path.join(databaseDirectory, 'runway.sqlite');
+  const legacyDb = new DatabaseSync(legacyDbPath);
+  try {
+    legacyDb.exec(`
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT NOT NULL, city TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')),
+        created_at TEXT NOT NULL
+      );
+      INSERT INTO users(id,name,email,password_hash,city,created_at)
+      VALUES('legacy-user','Existing user','legacy@example.test','fixture-no-login','Алматы','2025-01-01');
+      PRAGMA user_version=2;
+    `);
+  } finally {
+    legacyDb.close();
+  }
   const port = await freePort();
   await startServer(port);
+  const migratedDb = new DatabaseSync(legacyDbPath);
+  try {
+    const legacyUser = migratedDb.prepare("SELECT name, email, birth_date, height FROM users WHERE id='legacy-user'").get();
+    assert.equal(legacyUser?.name, 'Existing user');
+    assert.equal(legacyUser?.email, 'legacy@example.test');
+    assert.equal(legacyUser?.birth_date, '');
+    assert.equal(legacyUser?.height, null);
+  } finally {
+    migratedDb.close();
+  }
   await runSuite();
   console.log(JSON.stringify({ passed: checks.length, skipped, checks }, null, 2));
 } catch (error) {

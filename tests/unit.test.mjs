@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { calculateAge } from '../src/lib/profile.ts';
 import {
   isValidDate,
   validateApplicationFields,
@@ -70,7 +71,7 @@ describe('account validation', () => {
   });
 
   it('does not expose profile privilege fields and enforces the server city limit', () => {
-    assert.deepEqual(validateProfile({ name: 'Member', city: 'Almaty', role: 'admin', email: 'replacement@example.test' }).value, { name: 'Member', city: 'Almaty' });
+    assert.deepEqual(validateProfile({ name: 'Member', city: 'Almaty', role: 'admin', email: ' REPLACEMENT@EXAMPLE.TEST ' }).value, { name: 'Member', city: 'Almaty', email: 'replacement@example.test' });
     const invalid = validateProfile({ name: 'Member', city: 'x'.repeat(81) });
     assert.equal(invalid.value, null);
     assert.ok(invalid.fieldErrors.city);
@@ -244,5 +245,34 @@ describe('application autofill and list controls', () => {
     assert.deepEqual(ids('oldest'), ['old-model', 'new-course', 'other-model']);
     assert.deepEqual(ids('name'), ['old-model', 'new-course', 'other-model']);
     assert.equal(records[0].id, 'old-model');
+  });
+});
+
+describe('profile birth date and application autofill', () => {
+  it('increments age on the birthday and rejects impossible or future dates', () => {
+    assert.equal(calculateAge('2000-11-13', '2026-11-12'), 25);
+    assert.equal(calculateAge('2000-11-13', '2026-11-13'), 26);
+    assert.equal(calculateAge('2000-02-29', '2026-02-28'), 25);
+    assert.equal(calculateAge('2000-02-29', '2026-03-01'), 26);
+    for (const date of ['', '2001-02-29', '2026-11-14', '13.11.2000']) {
+      assert.equal(calculateAge(date, '2026-11-13'), null);
+    }
+  });
+
+  it('takes saved details and current age from the profile before looking at old applications', () => {
+    const user = {
+      id: 'owner', name: 'Member', city: 'Almaty', phone: '+77001112233',
+      birthDate: '2000-11-13', height: 179, chest: 92, waist: 65, hips: 91, experience: 'New experience',
+    };
+    const oldApplication = {
+      userId: user.id, type: 'model', createdAt: '2025-10-01', age: 24, height: 170,
+      measurements: '86/63/88', phone: '+77009998877', description: 'Old experience',
+    };
+    const defaults = applicationDefaults(user, [oldApplication], 'model', '2026-11-13');
+    assert.deepEqual(defaults, {
+      name: user.name, city: user.city, phone: user.phone, age: '26',
+      height: '179', chest: '92', waist: '65', hips: '91', description: user.experience,
+    });
+    assert.equal(applicationDefaults(user, [], 'course', '2026-11-12').age, '25');
   });
 });

@@ -1,6 +1,7 @@
 import type { Application, ApplicationStatus, ApplicationType, User } from '../types/api';
+import { calculateAge } from './profile.ts';
 
-export function applicationDefaults(user: User, applications: Application[], type: ApplicationType): Record<string, string> {
+export function applicationDefaults(user: User, applications: Application[], type: ApplicationType, today?: string): Record<string, string> {
   const personal = applications
     .filter(item => item.userId === user.id && item.type !== 'collaboration')
     .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -10,17 +11,18 @@ export function applicationDefaults(user: User, applications: Application[], typ
     : personal;
   const model = personal.find(item => item.type === 'model');
   const measurements = model?.measurements.match(/\d+/g) ?? [];
+  const age = calculateAge(user.birthDate, today) ?? personal.find(item => item.age != null)?.age;
   return {
     name: user.name,
     city: user.city,
-    phone: history.find(item => item.phone)?.phone ?? '',
-    age: String(personal.find(item => item.age != null)?.age ?? ''),
-    height: String(model?.height ?? ''),
-    chest: measurements[0] ?? '',
-    waist: measurements[1] ?? '',
-    hips: measurements[2] ?? '',
+    phone: user.phone || history.find(item => item.phone)?.phone || '',
+    age: String(age ?? ''),
+    height: String(user.height ?? model?.height ?? ''),
+    chest: String(user.chest ?? measurements[0] ?? ''),
+    waist: String(user.waist ?? measurements[1] ?? ''),
+    hips: String(user.hips ?? measurements[2] ?? ''),
     description: type === 'model' || type === 'course'
-      ? personal.find(item => item.type === type)?.description ?? ''
+      ? user.experience || personal.find(item => item.type === type)?.description || ''
       : '',
   };
 }

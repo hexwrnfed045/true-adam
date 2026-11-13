@@ -7,10 +7,30 @@ export function uploadsDirectory() { return path.join(dataDirectory(), "uploads"
 const migrated = new WeakSet<DatabaseSync>();
 function migrate(db: DatabaseSync) {
   if (migrated.has(db)) return;
-  const columns = db.prepare("PRAGMA table_info(applications)").all() as { name: string }[];
-  if (!columns.some(column => column.name === "age")) db.exec("ALTER TABLE applications ADD COLUMN age INTEGER");
-  if (!columns.some(column => column.name === "request_fingerprint")) db.exec("ALTER TABLE applications ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''");
-  db.exec("PRAGMA user_version=2"); migrated.add(db);
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const applications = db.prepare("PRAGMA table_info(applications)").all() as { name: string }[];
+    if (!applications.some(column => column.name === "age")) db.exec("ALTER TABLE applications ADD COLUMN age INTEGER");
+    if (!applications.some(column => column.name === "request_fingerprint")) db.exec("ALTER TABLE applications ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''");
+    const users = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+    const profileColumns = {
+      phone: "TEXT NOT NULL DEFAULT ''",
+      birth_date: "TEXT NOT NULL DEFAULT ''",
+      height: "INTEGER",
+      chest: "INTEGER",
+      waist: "INTEGER",
+      hips: "INTEGER",
+      experience: "TEXT NOT NULL DEFAULT ''",
+    };
+    for (const [name, definition] of Object.entries(profileColumns)) {
+      if (!users.some(column => column.name === name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+    }
+    db.exec("PRAGMA user_version=3; COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  migrated.add(db);
 }
 const shared = globalThis as typeof globalThis & { runwayDatabases?: Map<string, DatabaseSync> };
 export function database() {
@@ -23,8 +43,8 @@ export function database() {
   const db = new DatabaseSync(path.join(directory, "runway.sqlite"));
   db.exec(`
     PRAGMA foreign_keys = ON;
-    PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
+    PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
       password_hash TEXT NOT NULL, city TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')),
@@ -64,7 +84,6 @@ export function database() {
     );
     CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, actor_id TEXT NOT NULL, action TEXT NOT NULL, target_id TEXT NOT NULL, at TEXT NOT NULL, details TEXT NOT NULL DEFAULT '');
-    PRAGMA user_version = 1;
   `);
   migrate(db);
   shared.runwayDatabases.set(directory, db);

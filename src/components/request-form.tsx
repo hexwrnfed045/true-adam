@@ -72,7 +72,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     });
     return () => controller.abort();
   }, [user?.id]);
-  const defaults = user ? applicationDefaults(user, previousApplications, type) : {};
+  const defaults = user ? applicationDefaults(user, previousApplications, type, today) : {};
   function personalField(name: string) {
     const key = name === 'description' ? `description:${type}` : name;
     return {
@@ -181,7 +181,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
 
   return <form className="application-form" onSubmit={submit} onChange={() => setDirty(true)}>
     <p className="form-note" role="status">{autofillLoaded
-      ? 'Имя и город взяты из профиля. Остальные данные подставлены из прошлых анкет, если они есть. Проверьте возраст и параметры перед отправкой.'
+      ? 'Данные подставляются из профиля и прошлых анкет. Проверьте их перед отправкой.'
       : 'Загружаем данные прошлых анкет. Уже введённые значения сохранятся.'}</p>
     {autofillError && <Alert severity="warning">{autofillError}</Alert>}
     <div className="form-note">После отправки вы получите номер заявки. Контакты и фотографии доступны вам и уполномоченной команде агентства.</div>

@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Alert, Button, CircularProgress, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, FormControlLabel, IconButton, InputAdornment, Skeleton, Tab, Tabs, TextField } from '@mui/material';
 import type { Application, User } from '@/types/api';
 import { api, ApiError, jsonRequest, safeReturnTo } from '@/lib/client-api';
-import { APPLICATION_TYPE_LABELS, MIN_PASSWORD_LENGTH, validateLogin, validateRegister, validatePasswordChange, validateProfile } from '@/lib/validation';
+import { APPLICATION_TYPE_LABELS, MIN_PASSWORD_LENGTH, normalizeEmail, validateLogin, validateRegister, validatePasswordChange, validateProfile } from '@/lib/validation';
+import { calculateAge } from '@/lib/profile';
+import { formatEventDate, getToday } from '@/data/events';
 import { models } from '@/data/models';
 import ModelCard from './models/ModelCard';
 import { useModelFavorites } from './models/favorite-store';
@@ -66,24 +68,67 @@ export function SessionGate({ children, admin = false }: { children: (user: User
   return <>{children(user)}</>;
 }
 
+const profileMeasurements = [
+  { name: 'height', label: 'Рост', min: 140, max: 220 },
+  { name: 'chest', label: 'Обхват груди', min: 40, max: 180 },
+  { name: 'waist', label: 'Обхват талии', min: 40, max: 180 },
+  { name: 'hips', label: 'Обхват бёдер', min: 40, max: 180 },
+] as const;
+
 function ProfileEditor({ user }: { user: User }) {
   const { acceptUser } = useSession();
   const [editing, setEditing] = useState(false);
+  const [email, setEmail] = useState(user.email);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({});
   const [passwordVersion, setPasswordVersion] = useState(0);
+  const emailChanged = normalizeEmail(email) !== normalizeEmail(user.email);
+
   async function profile(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); if (busy) return;
-    const data = new FormData(event.currentTarget); const payload = { name: String(data.get('name') || ''), city: String(data.get('city') || '') };
+    event.preventDefault();
+    if (busy) return;
+    const data = new FormData(event.currentTarget);
+    const read = (name: string) => String(data.get(name) ?? '').trim();
+    const measurements = Object.fromEntries(profileMeasurements.map(({ name }) => {
+      const value = read(name);
+      return [name, value ? Number(value) : null];
+    }));
+    const payload = {
+      name: read('name'),
+      city: read('city'),
+      email: read('email'),
+      phone: read('phone'),
+      birthDate: read('birthDate'),
+      experience: read('experience'),
+      ...measurements,
+    };
+    setMessage('');
+    setError('');
     const validation = validateProfile(payload);
-    if (!validation.value) { setFields(validation.fieldErrors); return; }
-    setBusy(true); setError(''); setMessage(''); setFields({});
-    try { const result = await jsonRequest<{ user: User }>('/api/profile', 'PATCH', payload); acceptUser(result.user); setEditing(false); setMessage('Профиль сохранён.'); }
-    catch (problem) { setError(problem instanceof Error ? problem.message : 'Не удалось сохранить профиль.'); if (problem instanceof ApiError) setFields(problem.fieldErrors); }
-    finally { setBusy(false); }
+    if (!validation.value) {
+      setFields(validation.fieldErrors);
+      return;
+    }
+    setBusy(true);
+    setFields({});
+    try {
+      const result = await jsonRequest<{ user: User }>('/api/profile', 'PATCH', {
+        ...validation.value,
+        ...(emailChanged ? { currentPassword: String(data.get('currentPassword') ?? '') } : {}),
+      });
+      acceptUser(result.user);
+      setEditing(false);
+      setMessage('Профиль сохранён.');
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'Не удалось сохранить профиль.');
+      if (problem instanceof ApiError) setFields(problem.fieldErrors);
+    } finally {
+      setBusy(false);
+    }
   }
+
   async function password(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); if (busy) return;
     const data = new FormData(event.currentTarget); const payload = { currentPassword: String(data.get('currentPassword') || ''), newPassword: String(data.get('newPassword') || '') };
@@ -95,8 +140,96 @@ function ProfileEditor({ user }: { user: User }) {
     catch (problem) { setError(problem instanceof Error ? problem.message : 'Не удалось изменить пароль.'); if (problem instanceof ApiError) setFields(problem.fieldErrors); }
     finally { setBusy(false); }
   }
-  return <div className="profile-editor">{message && <Alert severity="success">{message}</Alert>}{error && <Alert severity="error">{error}</Alert>}{editing ? <form className="application-form" onSubmit={profile}><TextField name="name" label="Имя и фамилия" defaultValue={user.name} required error={!!fields.name} helperText={fields.name} /><TextField name="city" label="Город" defaultValue={user.city} required error={!!fields.city} helperText={fields.city} /><div className="form-action-row"><Button type="submit" variant="contained" disabled={busy}>Сохранить</Button><Button onClick={() => { setEditing(false); setFields({}); }} disabled={busy}>Отмена</Button></div></form> : <div className="account-profile"><p className="eyebrow">МОЙ ПРОФИЛЬ</p><h2>{user.name}</h2><p>{user.email}</p><p className="muted">{user.city}</p><Button variant="outlined" onClick={() => { setEditing(true); setFields({}); setMessage(''); }}>Редактировать</Button></div>}<h2 className="profile-password-heading">Изменить пароль</h2><form key={passwordVersion} className="application-form" onSubmit={password}><PasswordField name="currentPassword" label="Текущий пароль" autoComplete="current-password" error={!!fields.currentPassword} helperText={fields.currentPassword} /><PasswordField name="newPassword" label="Новый пароль" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} error={!!fields.newPassword} helperText={fields.newPassword || `Минимум ${MIN_PASSWORD_LENGTH} символов.`} /><PasswordField name="confirmation" label="Повторите новый пароль" autoComplete="new-password" error={!!fields.confirmation} helperText={fields.confirmation} /><Button type="submit" variant="contained" disabled={busy}>{busy ? 'Сохраняем…' : 'Изменить пароль'}</Button></form></div>;
+
+  function startEditing() {
+    setEmail(user.email);
+    setFields({});
+    setMessage('');
+    setError('');
+    setEditing(true);
+  }
+
+  const age = calculateAge(user.birthDate);
+  const profileField = (name: string) => ({ error: !!fields[name], helperText: fields[name] });
+  return (
+    <div className="profile-editor">
+      {message && <Alert severity="success">{message}</Alert>}
+      {error && <Alert severity="error">{error}</Alert>}
+      {editing ? (
+        <form onSubmit={profile}>
+          <fieldset className="application-fields" disabled={busy}>
+            <legend className="visually-hidden">Данные профиля</legend>
+            <div className="form-fields">
+              <TextField name="name" label="Имя и фамилия" defaultValue={user.name} autoComplete="name" required slotProps={{ htmlInput: { minLength: 2, maxLength: 100 } }} {...profileField('name')} />
+              <TextField name="city" label="Город" defaultValue={user.city} autoComplete="address-level2" required slotProps={{ htmlInput: { minLength: 2, maxLength: 80 } }} {...profileField('city')} />
+              <TextField name="email" label="Email" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required slotProps={{ htmlInput: { maxLength: 254 } }} {...profileField('email')} />
+              <TextField name="phone" label="Телефон" type="tel" defaultValue={user.phone ?? ''} autoComplete="tel" slotProps={{ htmlInput: { maxLength: 30 } }} {...profileField('phone')} />
+              {emailChanged && (
+                <div className="full">
+                  <PasswordField name="currentPassword" label="Текущий пароль для смены email" autoComplete="current-password" {...profileField('currentPassword')} />
+                </div>
+              )}
+              <TextField
+                name="birthDate"
+                label="Дата рождения"
+                type="date"
+                defaultValue={user.birthDate ?? ''}
+                autoComplete="bday"
+                slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: getToday() } }}
+                error={!!fields.birthDate}
+                helperText={fields.birthDate || 'Возраст рассчитывается автоматически.'}
+              />
+            </div>
+            <div className="form-fields">
+              {profileMeasurements.map(({ name, label, min, max }) => (
+                <TextField
+                  key={name}
+                  name={name}
+                  label={`${label}, см`}
+                  type="number"
+                  defaultValue={user[name] ?? ''}
+                  slotProps={{ htmlInput: { min, max, step: 1 } }}
+                  {...profileField(name)}
+                />
+              ))}
+            </div>
+            <TextField name="experience" label="О себе и опыте" defaultValue={user.experience ?? ''} multiline minRows={3} slotProps={{ htmlInput: { maxLength: 2000 } }} {...profileField('experience')} />
+            <div className="form-action-row">
+              <Button type="submit" variant="contained" disabled={busy}>{busy ? 'Сохраняем…' : 'Сохранить'}</Button>
+              <Button onClick={() => { setEditing(false); setFields({}); setError(''); }} disabled={busy}>Отмена</Button>
+            </div>
+          </fieldset>
+        </form>
+      ) : (
+        <>
+          <div className="account-profile">
+            <h2>{user.name}</h2>
+            <p>{user.email}</p>
+            <dl className="application-detail-fields">
+              <div><dt>Город</dt><dd>{user.city}</dd></div>
+              {user.phone && <div><dt>Телефон</dt><dd>{user.phone}</dd></div>}
+              {user.birthDate && <div><dt>Дата рождения</dt><dd>{formatEventDate(user.birthDate, { day: 'numeric', month: 'long', year: 'numeric' })}</dd></div>}
+              {age !== null && <div><dt>Возраст, лет</dt><dd>{age}</dd></div>}
+              {profileMeasurements.map(({ name, label }) => user[name] != null && (
+                <div key={name}><dt>{label}</dt><dd>{user[name]} см</dd></div>
+              ))}
+            </dl>
+            {user.experience && <section className="detail-text"><h3>О себе и опыте</h3><p>{user.experience}</p></section>}
+            <Button variant="outlined" sx={{ mt: 2 }} onClick={startEditing} disabled={busy}>Редактировать</Button>
+          </div>
+          <h2 className="profile-password-heading">Изменить пароль</h2>
+          <form key={passwordVersion} className="application-form" onSubmit={password}>
+            <PasswordField name="currentPassword" label="Текущий пароль" autoComplete="current-password" {...profileField('currentPassword')} />
+            <PasswordField name="newPassword" label="Новый пароль" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} error={!!fields.newPassword} helperText={fields.newPassword || `Минимум ${MIN_PASSWORD_LENGTH} символов.`} />
+            <PasswordField name="confirmation" label="Повторите новый пароль" autoComplete="new-password" {...profileField('confirmation')} />
+            <Button type="submit" variant="contained" disabled={busy}>{busy ? 'Сохраняем…' : 'Изменить пароль'}</Button>
+          </form>
+        </>
+      )}
+    </div>
+  );
 }
+
 function MemberAccount({ user }: { user: User }) {
   const router = useRouter();
   const { logout, refresh } = useSession();
