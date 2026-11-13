@@ -200,3 +200,32 @@ describe('calendar dates and Kazakhstan timezone', () => {
     assert.equal(isViewerRegistrationAvailable(event(), '2030-05-16'), false);
   });
 });
+import { applicationDefaults } from '../src/lib/application-ui.ts';
+
+describe('application autofill', () => {
+  const user = { id: 'member', name: 'Имя из профиля', city: 'Алматы' };
+  const records = [
+    { id: 'old-model', userId: user.id, type: 'model', createdAt: '2026-01-01', name: 'Анна', city: 'Алматы', phone: '+77001111111', age: 25, height: 180, measurements: '90 / 60 / 90', description: 'Опыт модели', status: 'submitted', targetId: null, title: 'Анкета', reference: 'RW-1', email: 'a@example.test' },
+    { id: 'new-course', userId: user.id, type: 'course', createdAt: '2026-02-01', name: 'Борис', city: 'Астана', phone: '+77002222222', age: null, height: null, measurements: '', description: 'Хочу изучить подиум', status: 'accepted', targetId: 'course-one', title: 'Курс', reference: 'RW-2', email: 'b@example.test' },
+    { id: 'other-model', userId: 'another-user', type: 'model', createdAt: '2026-03-01', name: 'Вера', city: 'Алматы', phone: '+77009999999', age: 21, height: 175, measurements: '85/60/90', description: 'Чужая анкета', status: 'submitted', targetId: 'event-one', title: 'Показ', reference: 'RW-3', email: 'v@example.test' },
+  ];
+
+  it('uses the current profile and the latest personal data of the same user', () => {
+    const defaults = applicationDefaults(user, records, 'model');
+    assert.equal(defaults.name, user.name);
+    assert.equal(defaults.city, user.city);
+    assert.equal(defaults.phone, '+77002222222');
+    assert.equal(defaults.age, '25');
+    assert.equal(defaults.height, '180');
+    assert.deepEqual([defaults.chest, defaults.waist, defaults.hips], ['90', '60', '90']);
+    assert.equal(defaults.description, 'Опыт модели');
+    assert.equal(applicationDefaults(user, records, 'course').description, 'Хочу изучить подиум');
+  });
+
+  it('handles first applications and keeps project descriptions out of personal forms', () => {
+    assert.equal(applicationDefaults(user, [], 'model').age, '');
+    const collaboration = { ...records[0], type: 'collaboration', createdAt: '2027-01-01', phone: '+77008888888', description: 'Бюджет проекта' };
+    assert.equal(applicationDefaults(user, [...records, collaboration], 'model').phone, '+77002222222');
+    assert.equal(applicationDefaults(user, [...records, collaboration], 'collaboration').description, '');
+  });
+});

@@ -10,6 +10,7 @@ import { models } from '@/data/models';
 import type { Application, ApplicationType, User } from '@/types/api';
 import { api, ApiError, jsonRequest } from '@/lib/client-api';
 import { useSession } from './session-provider';
+import { applicationDefaults } from '@/lib/application-ui';
 import { Arrow } from './site-shell';
 import './forms.css';
 
@@ -31,6 +32,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const viewer = query.get('role') === 'viewer';
   const [selection, setSelection] = useState(initialCourse ? `course:${initialCourse.id}` : initialEvent ? `event:${initialEvent.id}` : 'general');
   const [modelId, setModelId] = useState(initialModel?.id || 'any');
+  const [previousApplications, setPreviousApplications] = useState<Application[]>([]);
+  const [personalValues, setPersonalValues] = useState<Record<string, string>>({});
+  const [autofillError, setAutofillError] = useState('');
+  const [autofillLoaded, setAutofillLoaded] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [readingPhotos, setReadingPhotos] = useState(false);
@@ -53,6 +58,31 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const invalidReference = contact ? !!query.get('model') && !initialModel : (!!query.get('event') && !initialEvent) || (!!query.get('course') && !initialCourse) || (!!query.get('event') && !!query.get('course'));
   const unavailable = type === 'viewer' ? !activeEvent || !isViewerRegistrationAvailable(activeEvent, today) : !!activeEvent && !isEventAvailable(activeEvent, today) || !!activeCourse && !isCourseAvailable(activeCourse, today);
   const next = `${contact ? '/contact' : '/casting'}${query.toString() ? `?${query.toString()}` : ''}`;
+  useEffect(() => {
+    if (!user?.id) return;
+    const controller = new AbortController();
+    api<{ applications: Application[] }>('/api/applications', {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+    }).then(data => {
+      if (!controller.signal.aborted) setPreviousApplications(data.applications);
+    }).catch(() => {
+      if (!controller.signal.aborted) setAutofillError('Не удалось загрузить прошлые анкеты. Заполните данные вручную.');
+    }).finally(() => {
+      if (!controller.signal.aborted) setAutofillLoaded(true);
+    });
+    return () => controller.abort();
+  }, [user?.id]);
+  const defaults = user ? applicationDefaults(user, previousApplications, type) : {};
+  function personalField(name: string) {
+    const key = name === 'description' ? `description:${type}` : name;
+    return {
+      value: personalValues[key] ?? defaults[name] ?? '',
+      onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = event.target.value;
+        setPersonalValues(current => ({ ...current, [key]: value }));
+      },
+    };
+  }
   useEffect(() => {
     if (!dirty || receipt) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -118,6 +148,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     try {
       const result = await api<{ application: Application }>('/api/applications', { method: 'POST', body: data });
       setReceipt(result.application);
+      setPreviousApplications(current => [result.application, ...current.filter(item => item.id !== result.application.id)]);
       setDirty(false);
       setPhotos([]);
       idempotencyKey.current = null;
@@ -149,6 +180,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   if (receipt) return <div className="form-success" role="status"><span className="receipt-check" aria-hidden="true">✓</span><p className="eyebrow">ЗАЯВКА {receipt.reference}</p><h2>{receipt.status === 'waiting' ? 'Вы в листе ожидания.' : 'Анкета отправлена.'}</h2><p>Данные{receipt.photos.length ? ' и фотографии' : ''} сохранены на сервере. {receipt.status === 'waiting' ? 'Свободные места закончились. Команда увидит вашу запись и сможет подтвердить участие.' : 'Команда увидит заявку в своём кабинете. Статус рассмотрения можно проверить в личном кабинете.'}</p><div className="receipt-summary"><strong>{receipt.title}</strong><span>{receipt.name} · {receipt.email}</span></div><div className="form-action-row"><Link className="button button-dark" href="/account">Мои заявки <Arrow /></Link><Button onClick={() => setReceipt(null)}>Заполнить другую анкету</Button></div></div>;
 
   return <form className="application-form" onSubmit={submit} onChange={() => setDirty(true)}>
+    <p className="form-note" role="status">{autofillLoaded
+      ? 'Имя и город взяты из профиля. Остальные данные подставлены из прошлых анкет, если они есть. Проверьте возраст и параметры перед отправкой.'
+      : 'Загружаем данные прошлых анкет. Уже введённые значения сохранятся.'}</p>
+    {autofillError && <Alert severity="warning">{autofillError}</Alert>}
     <div className="form-note">После отправки вы получите номер заявки. Контакты и фотографии доступны вам и уполномоченной команде агентства.</div>
     <div ref={errorRef} tabIndex={-1} className="form-error-anchor">{error && <Alert severity="error">{error}</Alert>}</div>
     {invalidReference && <Alert severity="warning" action={<Button component={Link} href={contact ? "/contact" : "/casting"}>Сбросить ссылку</Button>}>Ссылка на проект или модель некорректна. Откройте актуальную карточку из каталога.</Alert>}
@@ -160,14 +195,15 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       {unavailable && <Alert severity="warning">Набор на этот проект завершён или запись недоступна. Выберите другую возможность.</Alert>}
       <p className="form-section-label">02 / КОНТАКТЫ</p>
       <div className="form-fields">
-        <TextField name="name" label={contact ? 'Имя / бренд' : 'Имя и фамилия'} defaultValue={user.name} autoComplete="name" required slotProps={{ htmlInput: { minLength: 2, maxLength: 100 } }} {...field('name')} />
+        <TextField name="name" label={contact ? 'Имя / бренд' : 'Имя и фамилия'} {...personalField("name")} autoComplete="name" required slotProps={{ htmlInput: { minLength: 2, maxLength: 100 } }} {...field('name')} />
         <TextField name="email" label="Email аккаунта" value={user.email} slotProps={{ input: { readOnly: true } }} helperText="Ответ и статус заявки будут доступны в кабинете." />
-        <TextField name="city" label="Город" defaultValue={user.city} autoComplete="address-level2" required slotProps={{ htmlInput: { minLength: 2, maxLength: 80 } }} {...field('city')} />
-        <TextField name="phone" label="Телефон" type="tel" autoComplete="tel" placeholder="+7 700 123 45 67" required slotProps={{ htmlInput: { maxLength: 25 } }} {...field('phone')} />
+        <TextField name="city" label="Город" {...personalField("city")} autoComplete="address-level2" required slotProps={{ htmlInput: { minLength: 2, maxLength: 80 } }} {...field('city')} />
+        <TextField name="phone" {...personalField("phone")} label="Телефон" type="tel" autoComplete="tel" placeholder="+7 700 123 45 67" required slotProps={{ htmlInput: { maxLength: 25 } }} {...field('phone')} />
       </div>
       {type === 'collaboration' && <div className="form-fields"><TextField name="projectDate" type="date" label="Планируемая дата" required slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: today } }} {...field('projectDate')} /><TextField name="projectType" select label="Формат проекта" defaultValue="Editorial" {...field('projectType')}>{['Editorial', 'Показ', 'Реклама', 'Другое'].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField></div>}
-      {type === 'model' && <><p className="form-section-label">03 / ПАРАМЕТРЫ</p><div className="form-fields"><TextField name="age" label="Возраст, лет" type="number" required slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field('age')} /><TextField name="height" label="Рост, см" type="number" required slotProps={{ htmlInput: { min: 140, max: 220 } }} {...field('height')} /></div><div className="measurements-fields">{[['chest', 'Грудь, см'], ['waist', 'Талия, см'], ['hips', 'Бёдра, см']].map(([name, label]) => <TextField key={name} name={name} label={label} type="number" required slotProps={{ htmlInput: { min: 40, max: 180 } }} error={!!fieldErrors.measurements} />)}</div>{fieldErrors.measurements && <p className="form-error">{fieldErrors.measurements}</p>}</>}
-      <TextField name="description" label={contact ? 'О проекте, бюджете и условиях' : viewer ? 'Комментарий (необязательно)' : type === 'course' ? 'Опыт и цель обучения (необязательно)' : 'Опыт и немного о себе'} multiline minRows={4} required={contact} slotProps={{ htmlInput: { maxLength: 2000 } }} {...field('description')} />
+      {type === 'model' && <><p className="form-section-label">03 / ПАРАМЕТРЫ</p><div className="form-fields"><TextField name="age" {...personalField("age")} label="Возраст, лет" type="number" required slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field('age')} /><TextField name="height" {...personalField("height")} label="Рост, см" type="number" required slotProps={{ htmlInput: { min: 140, max: 220 } }} {...field('height')} /></div><div className="measurements-fields">{[['chest', 'Грудь, см'], ['waist', 'Талия, см'], ['hips', 'Бёдра, см']].map(([name, label]) => <TextField key={name} name={name} {...personalField(name)} label={label} type="number" required slotProps={{ htmlInput: { min: 40, max: 180 } }} error={!!fieldErrors.measurements} />)}</div>{fieldErrors.measurements && <p className="form-error">{fieldErrors.measurements}</p>}</>}
+      {type === 'course' && <TextField name="age" label="Возраст, лет (необязательно)" type="number" {...personalField("age")} slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field("age")} />}
+      <TextField name="description" {...personalField("description")} label={contact ? 'О проекте, бюджете и условиях' : viewer ? 'Комментарий (необязательно)' : type === 'course' ? 'Опыт и цель обучения (необязательно)' : 'Опыт и немного о себе'} multiline minRows={4} required={contact} slotProps={{ htmlInput: { maxLength: 2000 } }} {...field('description')} />
       {type === 'model' && <><p className="form-section-label">04 / ФОТОГРАФИИ</p><div className="upload-field"><strong>Портрет, профиль или полный рост</strong><small>До 3 фотографий JPEG, PNG или WebP, до 5 МБ и 20 мегапикселей каждая. Естественный свет, без сильных фильтров.</small><Button variant="outlined" component="label" disabled={readingPhotos || photos.length >= 3}>{readingPhotos ? 'Проверяем фотографии…' : 'Добавить фотографии'}<input hidden type="file" multiple accept={photoTypes.join(',')} onChange={event => void addPhotos(event)} aria-label="Добавить фотографии" /></Button>{fieldErrors.photos && <p className="form-error">{fieldErrors.photos}</p>}</div>{photos.length > 0 && <ul className="photo-preview-list">{photos.map((file, index) => <PhotoPreview key={`${file.name}-${file.size}-${file.lastModified}-${index}`} file={file} remove={() => { setPhotos(current => current.filter((_, itemIndex) => itemIndex !== index)); setDirty(true); }} />)}</ul>}</>}
       <FormControlLabel control={<Checkbox required name="consent" value="true" size="small" />} label={<span className="consent-label">Согласен на обработку введённых данных и фотографий для рассмотрения этой заявки. <Link href="/privacy" target="_blank" rel="noopener noreferrer">Как хранятся данные</Link></span>} />
       {fieldErrors.consent && <p className="form-error">{fieldErrors.consent}</p>}
