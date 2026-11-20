@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Drawer, IconButton } from "@mui/material";
 import { useSession } from "@/components/session-provider";
+import { ROLE_LABELS, canModerate } from "@/lib/roles";
 import { syncFavoriteSession } from "@/components/models/favorite-store";
 
 const links = [
@@ -23,7 +24,7 @@ export function Header() {
   useEffect(() => { if (!loading) syncFavoriteSession(userId); }, [userId, loading]);
   const [open, setOpen] = useState(false);
   const isActive = (href: string) => href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-  const accountLabel = user ? `Личный кабинет: ${user.name}` : "Войти в личный кабинет";
+  const accountLabel = user ? `Личный кабинет: ${user.name}, ${ROLE_LABELS[user.role]}` : "Гость: вход и регистрация";
 
   return <header className="site-header">
     <Link href="/" className="brand" aria-label="Runway Models — главная">RUNWAY<span>MODELS <i aria-hidden="true" /></span></Link>
@@ -44,7 +45,7 @@ export function Header() {
       <div className="mobile-drawer" id="mobile-navigation">
         <div className="d-flex justify-content-between align-items-center"><span className="eyebrow" id="mobile-nav-title">Runway Models — меню</span><IconButton type="button" onClick={() => setOpen(false)} aria-label="Закрыть меню">×</IconButton></div>
         <nav aria-label="Мобильная навигация">
-          {[["/", "Главная"], ...links, ["/contact", "Сотрудничество"], ["/account", user ? "Мой кабинет" : "Вход / регистрация"]].map(([href, label]) => <Link key={href} href={href} onClick={() => setOpen(false)} aria-current={isActive(href) ? "page" : undefined}>{label}<Arrow /></Link>)}
+          {[["/", "Главная"], ...links, ["/contact", "Сотрудничество"], ...(user && canModerate(user.role) ? [["/admin", user.role === "admin" ? "Управление" : "Модерация"]] : []), ["/account", user ? `Мой кабинет · ${ROLE_LABELS[user.role]}` : "Гость · Вход / регистрация"]].map(([href, label]) => <Link key={href} href={href} onClick={() => setOpen(false)} aria-current={isActive(href) ? "page" : undefined}>{label}<Arrow /></Link>)}
         </nav>
       </div>
     </Drawer>
