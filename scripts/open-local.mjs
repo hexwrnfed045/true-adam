@@ -66,7 +66,7 @@ async function main() {
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
   console.log(`\nRUNWAY MODELS - local development\n${url}\nKeep this terminal open. Stop: Ctrl+C.\n`);
-  const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], { cwd: root, stdio: 'inherit', windowsHide: true });
+  const child = spawn(process.execPath, [require.resolve('next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', String(port)], { cwd: root, stdio: 'inherit', windowsHide: true, env: { ...process.env, ...(process.platform === 'win32' ? { UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || '1' } : {}) } });
   let exited = false;
   const clean = () => {
     try { if (JSON.parse(readFileSync(stateFile, 'utf8')).pid === child.pid) unlinkSync(stateFile); } catch { /* already removed */ }
