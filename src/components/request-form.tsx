@@ -7,7 +7,7 @@ import { Alert, Button, Checkbox, CircularProgress, Dialog, DialogActions, Dialo
 import { events, formatEventDate, getToday, isEventAvailable, isViewerRegistrationAvailable } from '@/data/events';
 import { courses, isCourseAvailable } from '@/data/courses';
 import { models } from '@/data/models';
-import type { Application, ApplicationType, User } from '@/types/api';
+import type { Application, ApplicationType, Photo, User } from '@/types/api';
 import { api, ApiError, jsonRequest } from '@/lib/client-api';
 import { useSession } from './session-provider';
 import { applicationDefaults } from '@/lib/application-ui';
@@ -26,6 +26,7 @@ function FormSkeleton() { return <div className="form-skeleton" aria-busy="true"
 function ApplicationForm({ contact }: { contact: boolean }) {
   const query = useSearchParams();
   const { user, loading, error: sessionError, refresh, acceptUser } = useSession();
+  const userId = user?.id;
   const initialEvent = events.find(item => item.id === query.get('event'));
   const initialCourse = courses.find(item => item.id === query.get('course'));
   const initialModel = models.find(item => item.id === query.get('model'));
@@ -33,6 +34,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const [selection, setSelection] = useState(initialCourse ? `course:${initialCourse.id}` : initialEvent ? `event:${initialEvent.id}` : 'general');
   const [modelId, setModelId] = useState(initialModel?.id || 'any');
   const [previousApplications, setPreviousApplications] = useState<Application[]>([]);
+  const [templates, setTemplates] = useState<Partial<Record<ApplicationType, Application | null>>>({});
+  const [templateLoaded, setTemplateLoaded] = useState<Partial<Record<ApplicationType, boolean>>>({});
+  const [savedSelections, setSavedSelections] = useState<Partial<Record<ApplicationType, Photo[]>>>({});
+  const [templateErrors, setTemplateErrors] = useState<Partial<Record<ApplicationType, string>>>({});
   const [personalValues, setPersonalValues] = useState<Record<string, string>>({});
   const [autofillError, setAutofillError] = useState('');
   const [autofillLoaded, setAutofillLoaded] = useState(false);
@@ -47,12 +52,17 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const [reauthBusy, setReauthBusy] = useState(false);
   const [reauthError, setReauthError] = useState('');
   const sending = useRef(false);
+  const newPhotoCount = useRef(0);
   const idempotencyKey = useRef<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const today = getToday();
   const activeEvent = contact ? undefined : events.find(item => selection === `event:${item.id}`);
   const activeCourse = contact ? undefined : courses.find(item => selection === `course:${item.id}`);
   const type: ApplicationType = contact ? 'collaboration' : viewer ? 'viewer' : activeCourse ? 'course' : 'model';
+  const savedPhotos = type === 'model' ? savedSelections[type] ?? [] : [];
+  const totalPhotos = savedPhotos.length + photos.length;
+  const currentTemplateLoaded = !!templateLoaded[type];
+  const templateError = templateErrors[type] ?? '';
   const eligibleEvents = events.filter(item => viewer ? isViewerRegistrationAvailable(item, today) : isEventAvailable(item, today));
   const eligibleCourses = courses.filter(item => isCourseAvailable(item, today));
   const invalidReference = contact ? !!query.get('model') && !initialModel : (!!query.get('event') && !initialEvent) || (!!query.get('course') && !initialCourse) || (!!query.get('event') && !!query.get('course'));
@@ -72,7 +82,33 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     });
     return () => controller.abort();
   }, [user?.id]);
-  const defaults = user ? applicationDefaults(user, previousApplications, type, today) : {};
+  useEffect(() => {
+    if (!userId || currentTemplateLoaded) return;
+    const controller = new AbortController();
+    api<{ application: Application | null }>(`/api/application-template?type=${type}`, {
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
+    }).then(data => {
+      if (controller.signal.aborted) return;
+      const template = data.application?.userId === userId && data.application.type === type ? data.application : null;
+      setTemplates(current => ({ ...current, [type]: template }));
+      setSavedSelections(current => ({ ...current, [type]: type === 'model' ? template?.photos.slice(0, Math.max(0, 3 - newPhotoCount.current)) ?? [] : [] }));
+      setTemplateErrors(current => ({ ...current, [type]: '' }));
+    }).catch(() => {
+      if (!controller.signal.aborted) setTemplateErrors(current => ({ ...current, [type]: 'Не удалось загрузить сохранённую анкету. Можно заполнить форму и добавить фотографии вручную.' }));
+    }).finally(() => {
+      if (!controller.signal.aborted) setTemplateLoaded(current => ({ ...current, [type]: true }));
+    });
+    return () => controller.abort();
+  }, [userId, type, currentTemplateLoaded]);
+  const defaults = user ? applicationDefaults(user, previousApplications, type, today, templates[type]) : {};
+  function useProfile() {
+    if (!user) return;
+    const profile = applicationDefaults(user, [], type, today);
+    setPersonalValues(current => ({ ...current, ...Object.fromEntries(Object.entries(profile)
+      .filter(([name]) => name !== 'description' || type === 'model' || type === 'course')
+      .map(([name, value]) => [name === 'description' ? `description:${type}` : name, value])) }));
+    setDirty(true);
+  }
   function personalField(name: string) {
     const key = name === 'description' ? `description:${type}` : name;
     return {
@@ -99,7 +135,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     setReadingPhotos(true);
     try {
       const unique = files.filter(file => !photos.some(old => old.name === file.name && old.size === file.size && old.lastModified === file.lastModified));
-      if (photos.length + unique.length > 3) throw new Error('Можно добавить до 3 фотографий. Сначала удалите лишнюю.');
+      if (totalPhotos + unique.length > 3) throw new Error('Можно добавить до 3 фотографий вместе с сохранёнными. Сначала удалите лишнюю.');
+      // Reserve these slots while images decode; a late template response
+      // must not silently add three more selected photos in the meantime.
+      newPhotoCount.current = photos.length + unique.length;
       for (const file of unique) {
         if (!photoTypes.includes(file.type)) throw new Error(`«${file.name}»: выберите JPEG, PNG или WebP.`);
         if (!file.size || file.size > maxPhotoBytes) throw new Error(`«${file.name}»: размер должен быть от 1 байта до 5 МБ.`);
@@ -107,10 +146,11 @@ function ApplicationForm({ contact }: { contact: boolean }) {
         catch { throw new Error(`«${file.name}»: изображение повреждено или слишком большого разрешения.`); }
       }
       setPhotos(old => [...old, ...unique]);
+      newPhotoCount.current = photos.length + unique.length;
       setDirty(true);
       setError('');
       setFieldErrors(old => ({ ...old, photos: '' }));
-    } catch (problem) { setError(problem instanceof Error ? problem.message : 'Не удалось прочитать фотографию.'); }
+    } catch (problem) { newPhotoCount.current = photos.length; setError(problem instanceof Error ? problem.message : 'Не удалось прочитать фотографию.'); }
     finally { setReadingPhotos(false); }
   }
 
@@ -120,13 +160,14 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     const form = event.currentTarget;
     const data = new FormData(form);
     const errors: Record<string, string> = {};
+    if (totalPhotos > 3) errors.photos = 'Можно отправить не более 3 фотографий.';
     for (const name of ['name', 'city']) if (String(data.get(name) || '').trim().length < 2) errors[name] = 'Минимум 2 символа, кроме пробелов.';
     const phone = String(data.get('phone') || '').replace(/\D/g, '');
     if (phone.length < 7 || phone.length > 15) errors.phone = 'Укажите от 7 до 15 цифр.';
     if (type === 'model') {
       const age = Number(data.get('age'));
       if (!Number.isInteger(age) || age < 18 || age > 80) errors.age = 'Анкеты принимаются от 18 до 80 лет.';
-      if (!photos.length) errors.photos = 'Добавьте хотя бы одну фотографию.';
+      if (!totalPhotos) errors.photos = 'Оставьте сохранённую или добавьте хотя бы одну фотографию.';
       const measurements = ['chest', 'waist', 'hips'].map(name => Number(data.get(name)));
       if (measurements.some(value => !Number.isFinite(value) || value < 40 || value > 180)) errors.measurements = 'Каждый параметр: от 40 до 180 см.';
       data.set('measurements', measurements.join('/'));
@@ -144,13 +185,19 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     data.set('email', user.email);
     data.set('consent', 'true');
     data.set('idempotencyKey', idempotencyKey.current);
-    if (type === 'model') photos.forEach(file => data.append('photos', file));
+    if (type === 'model') {
+      data.set('photoIds', JSON.stringify(savedPhotos.map(photo => photo.id)));
+      photos.forEach(file => data.append('photos', file));
+    }
     try {
       const result = await api<{ application: Application }>('/api/applications', { method: 'POST', body: data });
       setReceipt(result.application);
       setPreviousApplications(current => [result.application, ...current.filter(item => item.id !== result.application.id)]);
+      setTemplates(current => ({ ...current, [type]: result.application }));
+      setSavedSelections(current => ({ ...current, [type]: result.application.photos }));
       setDirty(false);
       setPhotos([]);
+      newPhotoCount.current = 0;
       idempotencyKey.current = null;
     } catch (problem) {
       if (problem instanceof ApiError) {
@@ -177,13 +224,13 @@ function ApplicationForm({ contact }: { contact: boolean }) {
 
   if (loading) return <FormSkeleton />;
   if (!user) return <div className="sign-in-gate"><p className="eyebrow">ВАШИ ЗАЯВКИ — В ЛИЧНОМ КАБИНЕТЕ</p><h2>Сначала познакомимся.</h2><p>Войдите или создайте аккаунт, чтобы отправить анкету, сохранить фотографии и следить за рассмотрением заявки.</p>{sessionError && <Alert severity="error" action={<Button onClick={() => void refresh()}>Повторить</Button>}>{sessionError}</Alert>}<div className="form-action-row"><Link href={`/login?next=${encodeURIComponent(next)}`} className="button button-dark">Войти <Arrow /></Link><Link href={`/register?next=${encodeURIComponent(next)}`} className="text-link">Создать аккаунт <Arrow /></Link></div></div>;
-  if (receipt) return <div className="form-success" role="status"><span className="receipt-check" aria-hidden="true">✓</span><p className="eyebrow">ЗАЯВКА {receipt.reference}</p><h2>{receipt.status === 'waiting' ? 'Вы в листе ожидания.' : 'Анкета отправлена.'}</h2><p>Данные{receipt.photos.length ? ' и фотографии' : ''} сохранены на сервере. {receipt.status === 'waiting' ? 'Свободные места закончились. Команда увидит вашу запись и сможет подтвердить участие.' : 'Команда увидит заявку в своём кабинете. Статус рассмотрения можно проверить в личном кабинете.'}</p><div className="receipt-summary"><strong>{receipt.title}</strong><span>{receipt.name} · {receipt.email}</span></div><div className="form-action-row"><Link className="button button-dark" href="/account">Мои заявки <Arrow /></Link><Button onClick={() => setReceipt(null)}>Заполнить другую анкету</Button></div></div>;
+  if (receipt) return <div className="form-success" role="status"><span className="receipt-check" aria-hidden="true">✓</span><p className="eyebrow">ЗАЯВКА {receipt.reference}</p><h2>{receipt.status === 'waiting' ? 'Вы в листе ожидания.' : 'Анкета отправлена.'}</h2><p>Данные{receipt.photos.length ? ' и фотографии' : ''} сохранены для следующих заявок этого типа. {receipt.status === 'waiting' ? 'Свободные места закончились. Команда увидит вашу запись и сможет подтвердить участие.' : 'Команда увидит заявку в своём кабинете. Статус рассмотрения можно проверить в личном кабинете.'}</p><div className="receipt-summary"><strong>{receipt.title}</strong><span>{receipt.name} · {receipt.email}</span></div><div className="form-action-row"><Link className="button button-dark" href="/account">Мои заявки <Arrow /></Link><Button onClick={() => setReceipt(null)}>Заполнить другую анкету</Button></div></div>;
 
   return <form className="application-form" onSubmit={submit} onChange={() => setDirty(true)}>
-    <p className="form-note" role="status">{autofillLoaded
-      ? 'Данные подставляются из профиля и прошлых анкет. Проверьте их перед отправкой.'
-      : 'Загружаем данные прошлых анкет. Уже введённые значения сохранятся.'}</p>
-    {autofillError && <Alert severity="warning">{autofillError}</Alert>}
+    <p className="form-note" role="status">{autofillLoaded && currentTemplateLoaded
+      ? templates[type] ? `Данные${type === 'model' && savedPhotos.length ? ' и фотографии' : ''} подставлены из сохранённой анкеты ${templates[type]?.reference}. Проверьте их перед отправкой.` : 'Данные подставляются из профиля и прошлых анкет. Проверьте их перед отправкой.'
+      : 'Загружаем сохранённую анкету. Уже введённые значения останутся в форме.'}</p>
+    {autofillError && <Alert severity="warning">{autofillError}</Alert>}{templateError && <Alert severity="warning" action={<Button onClick={() => setTemplateLoaded(current => ({ ...current, [type]: false }))}>Повторить</Button>}>{templateError}</Alert>}
     <div className="form-note">После отправки вы получите номер заявки. Контакты и фотографии доступны вам и уполномоченной команде агентства.</div>
     <div ref={errorRef} tabIndex={-1} className="form-error-anchor">{error && <Alert severity="error">{error}</Alert>}</div>
     {invalidReference && <Alert severity="warning" action={<Button component={Link} href={contact ? "/contact" : "/casting"}>Сбросить ссылку</Button>}>Ссылка на проект или модель некорректна. Откройте актуальную карточку из каталога.</Alert>}
@@ -193,7 +240,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       {contact ? <TextField select label="Выбранная модель" value={modelId} onChange={event => setModelId(event.target.value)}><MenuItem value="any">Помогите подобрать модель</MenuItem>{models.map(model => <MenuItem key={model.id} value={model.id}>{model.name} · {model.city}</MenuItem>)}</TextField> : <TextField select label={viewer ? 'Запись зрителем на показ' : 'Кастинг, событие или курс'} value={selection} onChange={event => { setSelection(event.target.value); setError(''); setFieldErrors({}); }} {...field('targetId')}><MenuItem value="general" disabled={viewer}>Стать моделью · общая анкета</MenuItem>{eligibleEvents.map(item => <MenuItem key={item.id} value={`event:${item.id}`}>{item.title} · {formatEventDate(item.date)}</MenuItem>)}{activeEvent && !eligibleEvents.some(item => item.id === activeEvent.id) && <MenuItem value={`event:${activeEvent.id}`}>{activeEvent.title} · приём закрыт</MenuItem>}{!viewer && eligibleCourses.map(course => <MenuItem key={course.id} value={`course:${course.id}`}>{course.title} · обучение</MenuItem>)}{activeCourse && !eligibleCourses.some(course => course.id === activeCourse.id) && <MenuItem value={`course:${activeCourse.id}`}>{activeCourse.title} · набор завершён</MenuItem>}</TextField>}
       {!contact && viewer && <Alert severity="info">Это запись на посещение показа. Для участия в качестве модели откройте анкету из раздела «Кастинги».</Alert>}
       {unavailable && <Alert severity="warning">Набор на этот проект завершён или запись недоступна. Выберите другую возможность.</Alert>}
-      <p className="form-section-label">02 / КОНТАКТЫ</p>
+      <div className="application-field-tools"><p className="form-section-label">02 / КОНТАКТЫ</p><Button size="small" type="button" onClick={useProfile} disabled={busy}>Заполнить из профиля</Button></div>
       <div className="form-fields">
         <TextField name="name" label={contact ? 'Имя / бренд' : 'Имя и фамилия'} {...personalField("name")} autoComplete="name" required slotProps={{ htmlInput: { minLength: 2, maxLength: 100 } }} {...field('name')} />
         <TextField name="email" label="Email аккаунта" value={user.email} slotProps={{ input: { readOnly: true } }} helperText="Ответ и статус заявки будут доступны в кабинете." />
@@ -204,10 +251,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       {type === 'model' && <><p className="form-section-label">03 / ПАРАМЕТРЫ</p><div className="form-fields"><TextField name="age" {...personalField("age")} label="Возраст, лет" type="number" required slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field('age')} /><TextField name="height" {...personalField("height")} label="Рост, см" type="number" required slotProps={{ htmlInput: { min: 140, max: 220 } }} {...field('height')} /></div><div className="measurements-fields">{[['chest', 'Грудь, см'], ['waist', 'Талия, см'], ['hips', 'Бёдра, см']].map(([name, label]) => <TextField key={name} name={name} {...personalField(name)} label={label} type="number" required slotProps={{ htmlInput: { min: 40, max: 180 } }} error={!!fieldErrors.measurements} />)}</div>{fieldErrors.measurements && <p className="form-error">{fieldErrors.measurements}</p>}</>}
       {type === 'course' && <TextField name="age" label="Возраст, лет (необязательно)" type="number" {...personalField("age")} slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field("age")} />}
       <TextField name="description" {...personalField("description")} label={contact ? 'О проекте, бюджете и условиях' : viewer ? 'Комментарий (необязательно)' : type === 'course' ? 'Опыт и цель обучения (необязательно)' : 'Опыт и немного о себе'} multiline minRows={4} required={contact} slotProps={{ htmlInput: { maxLength: 2000 } }} {...field('description')} />
-      {type === 'model' && <><p className="form-section-label">04 / ФОТОГРАФИИ</p><div className="upload-field"><strong>Портрет, профиль или полный рост</strong><small>До 3 фотографий JPEG, PNG или WebP, до 5 МБ и 20 мегапикселей каждая. Естественный свет, без сильных фильтров.</small><Button variant="outlined" component="label" disabled={readingPhotos || photos.length >= 3}>{readingPhotos ? 'Проверяем фотографии…' : 'Добавить фотографии'}<input hidden type="file" multiple accept={photoTypes.join(',')} onChange={event => void addPhotos(event)} aria-label="Добавить фотографии" /></Button>{fieldErrors.photos && <p className="form-error">{fieldErrors.photos}</p>}</div>{photos.length > 0 && <ul className="photo-preview-list">{photos.map((file, index) => <PhotoPreview key={`${file.name}-${file.size}-${file.lastModified}-${index}`} file={file} remove={() => { setPhotos(current => current.filter((_, itemIndex) => itemIndex !== index)); setDirty(true); }} />)}</ul>}</>}
+      {type === 'model' && <><p className="form-section-label">04 / ФОТОГРАФИИ</p><div className="upload-field"><strong>Портрет, профиль или полный рост</strong><small>До 3 фотографий JPEG, PNG или WebP, до 5 МБ и 20 мегапикселей каждая. Естественный свет, без сильных фильтров.</small><Button variant="outlined" component="label" disabled={readingPhotos || totalPhotos >= 3}>{readingPhotos ? 'Проверяем фотографии…' : 'Добавить фотографии'}<input hidden type="file" multiple accept={photoTypes.join(',')} onChange={event => void addPhotos(event)} aria-label="Добавить фотографии" /></Button>{(fieldErrors.photos || fieldErrors.photoIds) && <p className="form-error">{fieldErrors.photos || fieldErrors.photoIds}</p>}</div>{totalPhotos > 0 && <ul className="photo-preview-list">{savedPhotos.map(photo => <li className="photo-preview" key={photo.id}><Image unoptimized src={photo.url} width={110} height={140} alt={`Фото из сохранённой анкеты: ${photo.name}`} /><div><strong>{photo.name}</strong><small>Из сохранённой анкеты</small></div><IconButton type="button" size="small" aria-label={`Убрать сохранённое фото ${photo.name}`} onClick={() => { setSavedSelections(current => ({ ...current, [type]: savedPhotos.filter(item => item.id !== photo.id) })); setDirty(true); }}>×</IconButton></li>)}{photos.map((file, index) => <PhotoPreview key={`${file.name}-${file.size}-${file.lastModified}-${index}`} file={file} remove={() => { setPhotos(current => { const remaining = current.filter((_, itemIndex) => itemIndex !== index); newPhotoCount.current = remaining.length; return remaining; }); setDirty(true); }} />)}</ul>}</>}
       <FormControlLabel control={<Checkbox required name="consent" value="true" size="small" />} label={<span className="consent-label">Согласен на обработку введённых данных и фотографий для рассмотрения этой заявки. <Link href="/privacy" target="_blank" rel="noopener noreferrer">Как хранятся данные</Link></span>} />
       {fieldErrors.consent && <p className="form-error">{fieldErrors.consent}</p>}
-      <Button variant="contained" type="submit" disabled={busy || readingPhotos || unavailable || invalidReference} endIcon={busy ? <CircularProgress size={18} color="inherit" /> : <Arrow />} sx={{ width: '100%', justifyContent: 'space-between' }}>{busy ? 'Отправляем анкету…' : type === 'viewer' ? 'Записаться зрителем' : type === 'course' ? 'Отправить заявку на обучение' : 'Отправить анкету'}</Button>
+      <Button variant="contained" type="submit" disabled={busy || readingPhotos || !currentTemplateLoaded || unavailable || invalidReference} endIcon={busy ? <CircularProgress size={18} color="inherit" /> : <Arrow />} sx={{ width: '100%', justifyContent: 'space-between' }}>{busy ? 'Отправляем анкету…' : type === 'viewer' ? 'Записаться зрителем' : type === 'course' ? 'Отправить заявку на обучение' : 'Отправить анкету'}</Button>
     </fieldset>
     <Dialog open={reauth} onClose={() => !reauthBusy && setReauth(false)} fullWidth maxWidth="sm" aria-labelledby="restore-session-title"><form onSubmit={restoreSession}><DialogTitle id="restore-session-title">Войдите снова</DialogTitle><DialogContent><p className="muted">Срок входа истёк. Подтвердите пароль — заполненная анкета и выбранные фото останутся на месте.</p><div className="application-form">{reauthError && <Alert severity="error">{reauthError}</Alert>}<TextField label="Email" value={user.email} slotProps={{ input: { readOnly: true } }} /><TextField autoFocus name="sessionPassword" label="Пароль" type="password" autoComplete="current-password" required disabled={reauthBusy} slotProps={{ htmlInput: { maxLength: 128 } }} /></div></DialogContent><DialogActions><Button onClick={() => setReauth(false)} disabled={reauthBusy}>Закрыть</Button><Button type="submit" variant="contained" disabled={reauthBusy}>{reauthBusy ? 'Входим…' : 'Восстановить вход'}</Button></DialogActions></form></Dialog>
   </form>;

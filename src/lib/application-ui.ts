@@ -1,7 +1,8 @@
 import type { Application, ApplicationStatus, ApplicationType, User } from '../types/api';
 import { calculateAge } from './profile.ts';
 
-export function applicationDefaults(user: User, applications: Application[], type: ApplicationType, today?: string): Record<string, string> {
+export function applicationDefaults(user: User, applications: Application[], type: ApplicationType, today?: string, template?: Application | null): Record<string, string> {
+  const saved = template?.userId === user.id && template.type === type ? template : null;
   const personal = applications
     .filter(item => item.userId === user.id && item.type !== 'collaboration')
     .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -10,19 +11,19 @@ export function applicationDefaults(user: User, applications: Application[], typ
       .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt))
     : personal;
   const model = personal.find(item => item.type === 'model');
-  const measurements = model?.measurements.match(/\d+/g) ?? [];
+  const measurements = (saved && type === 'model' ? saved.measurements : model?.measurements)?.match(/\d+/g) ?? [];
   const age = calculateAge(user.birthDate, today) ?? personal.find(item => item.age != null)?.age;
   return {
-    name: user.name,
-    city: user.city,
-    phone: user.phone || history.find(item => item.phone)?.phone || '',
-    age: String(age ?? ''),
-    height: String(user.height ?? model?.height ?? ''),
-    chest: String(user.chest ?? measurements[0] ?? ''),
-    waist: String(user.waist ?? measurements[1] ?? ''),
-    hips: String(user.hips ?? measurements[2] ?? ''),
+    name: saved?.name ?? user.name,
+    city: saved?.city ?? user.city,
+    phone: saved ? saved.phone : user.phone || history.find(item => item.phone)?.phone || '',
+    age: String(saved && (type === 'model' || type === 'course') ? saved.age ?? '' : age ?? ''),
+    height: String(saved && type === 'model' ? saved.height ?? '' : user.height ?? model?.height ?? ''),
+    chest: String(saved && type === 'model' ? measurements[0] ?? '' : user.chest ?? measurements[0] ?? ''),
+    waist: String(saved && type === 'model' ? measurements[1] ?? '' : user.waist ?? measurements[1] ?? ''),
+    hips: String(saved && type === 'model' ? measurements[2] ?? '' : user.hips ?? measurements[2] ?? ''),
     description: type === 'model' || type === 'course'
-      ? user.experience || personal.find(item => item.type === type)?.description || ''
+      ? saved ? saved.description : user.experience || personal.find(item => item.type === type)?.description || ''
       : '',
   };
 }
