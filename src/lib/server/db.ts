@@ -7,28 +7,58 @@ export function uploadsDirectory() { return path.join(dataDirectory(), "uploads"
 const migrated = new WeakSet<DatabaseSync>();
 function migrate(db: DatabaseSync) {
   if (migrated.has(db)) return;
-  db.exec("BEGIN IMMEDIATE");
+  // SQLite requires foreign_keys to be changed outside a transaction when
+  // replacing a referenced table. Keep the original IDs and verify every FK
+  // before committing, so existing sessions, applications and files survive.
+  db.exec("PRAGMA foreign_keys=OFF");
   try {
-    const applications = db.prepare("PRAGMA table_info(applications)").all() as { name: string }[];
-    if (!applications.some(column => column.name === "age")) db.exec("ALTER TABLE applications ADD COLUMN age INTEGER");
-    if (!applications.some(column => column.name === "request_fingerprint")) db.exec("ALTER TABLE applications ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''");
-    const users = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
-    const profileColumns = {
-      phone: "TEXT NOT NULL DEFAULT ''",
-      birth_date: "TEXT NOT NULL DEFAULT ''",
-      height: "INTEGER",
-      chest: "INTEGER",
-      waist: "INTEGER",
-      hips: "INTEGER",
-      experience: "TEXT NOT NULL DEFAULT ''",
-    };
-    for (const [name, definition] of Object.entries(profileColumns)) {
-      if (!users.some(column => column.name === name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const applications = db.prepare("PRAGMA table_info(applications)").all() as { name: string }[];
+      if (!applications.some(column => column.name === "age")) db.exec("ALTER TABLE applications ADD COLUMN age INTEGER");
+      if (!applications.some(column => column.name === "request_fingerprint")) db.exec("ALTER TABLE applications ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''");
+      const users = db.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+      const profileColumns = {
+        phone: "TEXT NOT NULL DEFAULT ''",
+        birth_date: "TEXT NOT NULL DEFAULT ''",
+        height: "INTEGER",
+        chest: "INTEGER",
+        waist: "INTEGER",
+        hips: "INTEGER",
+        experience: "TEXT NOT NULL DEFAULT ''",
+      };
+      for (const [name, definition] of Object.entries(profileColumns)) {
+        if (!users.some(column => column.name === name)) db.exec(`ALTER TABLE users ADD COLUMN ${name} ${definition}`);
+      }
+      const definition = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get() as { sql: string };
+      if (!definition.sql.includes("'viewer'")) {
+        db.exec(`
+          CREATE TABLE users_roles_v4 (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            password_hash TEXT NOT NULL, city TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'viewer' CHECK(role IN ('viewer','model','organizer','brand','agent','moderator','admin')),
+            created_at TEXT NOT NULL,
+            phone TEXT NOT NULL DEFAULT '', birth_date TEXT NOT NULL DEFAULT '',
+            height INTEGER, chest INTEGER, waist INTEGER, hips INTEGER,
+            experience TEXT NOT NULL DEFAULT ''
+          );
+          INSERT INTO users_roles_v4(id,name,email,password_hash,city,role,created_at,phone,birth_date,height,chest,waist,hips,experience)
+            SELECT id,name,email,password_hash,city,CASE role WHEN 'member' THEN 'viewer' ELSE role END,
+              created_at,phone,birth_date,height,chest,waist,hips,experience FROM users;
+          DROP TABLE users;
+          ALTER TABLE users_roles_v4 RENAME TO users;
+        `);
+      }
+      if (db.prepare("PRAGMA foreign_key_check").all().length) {
+        throw new Error("Database migration would leave invalid references; changes were rolled back.");
+      }
+      db.exec("PRAGMA user_version=4; COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
     }
-    db.exec("PRAGMA user_version=3; COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
+  } finally {
+    db.exec("PRAGMA foreign_keys=ON");
   }
   migrated.add(db);
 }
@@ -47,7 +77,7 @@ export function database() {
     PRAGMA journal_mode = WAL;
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-      password_hash TEXT NOT NULL, city TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')),
+      password_hash TEXT NOT NULL, city TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'viewer' CHECK(role IN ('viewer','model','organizer','brand','agent','moderator','admin')),
       created_at TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS sessions (

@@ -2,12 +2,13 @@ import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { database } from "./db";
 import { ApiFailure, digest } from "./http";
-import type { ProfileFields, User } from "@/types/api";
+import type { ProfileFields, User, UserRole } from "@/types/api";
+import { canModerate } from "../roles";
 const scryptAsync = promisify(scrypt);
 const COOKIE = "runway-session";
 const SESSION_AGE = 30 * 24 * 60 * 60;
 type UserRow = Omit<ProfileFields, "birthDate"> & {
-  id: string; name: string; email: string; city: string; role: "member" | "admin";
+  id: string; name: string; email: string; city: string; role: UserRole;
   created_at: string; password_hash: string; birth_date: string;
 };
 export function publicUser(row: UserRow): User { return { id: row.id, name: row.name, email: row.email, city: row.city, role: row.role, createdAt: row.created_at }; }
@@ -43,6 +44,7 @@ export function sessionUser(request: Request): User | null {
 }
 export function requireUser(request: Request) { const user = sessionUser(request); if (!user) throw new ApiFailure(401, "Войдите в аккаунт, чтобы продолжить."); return user; }
 export function requireAdmin(request: Request) { const user = requireUser(request); if (user.role !== "admin") throw new ApiFailure(403, "Недостаточно прав."); return user; }
+export function requireModerator(request: Request) { const user = requireUser(request); if (!canModerate(user.role)) throw new ApiFailure(403, "Недостаточно прав для модерации."); return user; }
 export function createSession(userId: string, request: Request) {
   deleteSession(request); const token = randomBytes(32).toString("base64url"); const now = Date.now();
   database().prepare("DELETE FROM sessions WHERE expires_at<=?").run(now);

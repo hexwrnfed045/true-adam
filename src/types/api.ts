@@ -1,4 +1,4 @@
-export type UserRole = "member" | "admin";
+export type UserRole = "viewer" | "model" | "organizer" | "brand" | "agent" | "moderator" | "admin";
 export interface ProfileFields {
   phone: string;
   birthDate: string;
@@ -21,7 +21,7 @@ export interface Application {
   createdAt: string; updatedAt: string; adminNote: string; photos: Photo[]; history?: ApplicationHistoryEntry[];
 }
 export interface ApiError { error: string; fieldErrors?: Record<string, string>; }
-export interface RegisterInput { name: string; email: string; password: string; city: string; consent: boolean; }
+export interface RegisterInput { name: string; email: string; password: string; city: string; consent: boolean; role?: UserRole; }
 export interface LoginInput { email: string; password: string; }
 export interface ProfileInput extends Partial<ProfileFields> { name: string; city: string; email?: string; }
 export interface PasswordInput { currentPassword: string; newPassword: string; }

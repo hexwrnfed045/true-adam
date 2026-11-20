@@ -1,5 +1,6 @@
 import type { ApplicationInput, ApplicationStatus, ApplicationType, LoginInput, PasswordInput, ProfileInput, RegisterInput } from "@/types/api";
 import { getToday } from "../data/events.ts";
+import { isRegistrationRole } from "./roles.ts";
 export const APPLICATION_TYPES: ApplicationType[] = ["model", "viewer", "course", "collaboration"];
 export const APPLICATION_STATUSES: ApplicationStatus[] = ["submitted", "reviewing", "accepted", "rejected", "withdrawn", "waiting"];
 export const APPLICATION_STATUS_LABELS: Record<ApplicationStatus, string> = { submitted: "Отправлена", reviewing: "На рассмотрении", accepted: "Принята", rejected: "Отклонена", withdrawn: "Отозвана", waiting: "Лист ожидания" };
@@ -24,7 +25,9 @@ function identity(input: Record<string, unknown>, errors: Record<string, string>
 export function validateRegister(input: Record<string, unknown>): ValidationResult<RegisterInput> {
   const errors: Record<string, string> = {}; const who = identity(input, errors); const email = normalizeEmail(str(input, "email")); const password = typeof input.password === "string" ? input.password : ""; const consent = input.consent === true;
   if (!isValidEmail(email)) errors.email = "Введите корректный email."; if (!validatePassword(password)) errors.password = "Пароль должен содержать от 8 до 128 символов."; if (!consent) errors.consent = "Необходимо согласие на обработку данных.";
-  return result({ ...who, email, password, consent }, errors);
+  const role = input.role === undefined ? "viewer" : input.role;
+  if (!isRegistrationRole(role)) errors.role = "Выберите доступный тип аккаунта. Права сотрудников назначает администратор.";
+  return result({ ...who, email, password, consent, role: isRegistrationRole(role) ? role : "viewer" }, errors);
 }
 export function validateLogin(input: Record<string, unknown>): ValidationResult<LoginInput> { const errors: Record<string, string> = {}; const email = normalizeEmail(str(input, "email")); const password = typeof input.password === "string" ? input.password : ""; if (!isValidEmail(email)) errors.email = "Введите корректный email."; if (!password || password.length > 128) errors.password = "Введите пароль."; return result({ email, password }, errors); }
 export function validateProfile(input: Record<string, unknown>, today = getToday()): ValidationResult<ProfileInput> {

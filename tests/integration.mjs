@@ -189,9 +189,9 @@ async function runSuite() {
   await request('missing Origin blocked', '/api/auth/register', { method: 'POST', origin: null, body: {}, expected: 403 });
   await request('invalid registration fields', '/api/auth/register', { method: 'POST', body: { name: ' ', email: 'broken', password: 'short', city: ' ', consent: false }, expected: 422 });
   for (const [actor, name] of [[alice, 'Алиса Тест'], [bob, 'Боб Тест'], [admin, 'Администратор Тест']]) {
-    const { data, headers } = await request(`register ${name}`, '/api/auth/register', { method: 'POST', actor, body: { name, email: actor.email, password, city: 'Алматы', consent: true, role: 'admin' }, expected: 201 });
+    const { data, headers } = await request(`register ${name}`, '/api/auth/register', { method: 'POST', actor, body: { name, email: actor.email, password, city: 'Алматы', consent: true }, expected: 201 });
     actor.id = data.user.id;
-    assert.equal(data.user.role, 'member');
+    assert.equal(data.user.role, 'viewer');
     assert.match(headers.get('set-cookie'), /HttpOnly/);
     assert.match(headers.get('set-cookie'), /SameSite=Lax/);
   }
@@ -201,7 +201,7 @@ async function runSuite() {
   await request('member admin access blocked', '/api/admin/applications', { actor: alice, expected: 403 });
   await request('profile role injection ignored', '/api/profile', { method: 'PATCH', actor: alice, body: { name: 'Алиса Новый Профиль', city: 'Астана', role: 'admin' } });
   const profile = (await request('profile updated', '/api/auth/me', { actor: alice })).data.user;
-  assert.equal(profile.role, 'member'); assert.equal(profile.name, 'Алиса Новый Профиль'); assert.equal(profile.city, 'Астана');
+  assert.equal(profile.role, 'viewer'); assert.equal(profile.name, 'Алиса Новый Профиль'); assert.equal(profile.city, 'Астана');
   const savedDetails = {
     phone: '+7 701 555 66 77', birthDate: '2000-11-13', height: 178,
     chest: 89, waist: 63, hips: 92, experience: 'Опыт подиума и съёмок',
@@ -285,8 +285,8 @@ async function runSuite() {
   await request('withdrawn cannot be reviewed', `/api/admin/applications/${replacement.id}`, { method: 'PATCH', actor: admin, body: { status: 'accepted' }, expected: 409 });
   await request('member cannot assign role', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: alice, body: { role: 'admin' }, expected: 403 });
   await request('admin promotes team member', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'admin' } });
-  await request('admin demotes team member', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'member' } });
-  await request('last admin protected', `/api/admin/users/${admin.id}`, { method: 'PATCH', actor: admin, body: { role: 'member' }, expected: 409 });
+  await request('admin demotes team member', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' } });
+  await request('last admin protected', `/api/admin/users/${admin.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' }, expected: 409 });
   await request('password changed', '/api/auth/password', { method: 'POST', actor: alice, body: { currentPassword: password, newPassword: `${password}-new` } });
   await request('password old rejected', '/api/auth/login', { method: 'POST', body: { email: alice.email, password }, expected: 401 });
   const oldCookie = alice.cookie;
@@ -309,7 +309,7 @@ async function runSuite() {
     const at = new Date().toISOString();
     for (let index = alreadyReserved; index < capacityEvent.seats; index++) {
       const userId = randomUUID(); const applicationId = randomUUID(); fixtures.push(applicationId);
-      fixtureDatabase.prepare("INSERT INTO users(id,name,email,password_hash,city,role,created_at) VALUES(?,?,?,?,?,'member',?)").run(userId, 'Seat fixture', `seat-${index}-${suffix}@example.com`, 'fixture-no-login', 'Астана', at);
+      fixtureDatabase.prepare("INSERT INTO users(id,name,email,password_hash,city,role,created_at) VALUES(?,?,?,?,?,'viewer',?)").run(userId, 'Seat fixture', `seat-${index}-${suffix}@example.com`, 'fixture-no-login', 'Астана', at);
       fixtureDatabase.prepare("INSERT INTO applications(id,reference,user_id,type,title,target_id,status,name,email,phone,city,idempotency_key,dedupe_key,created_at,updated_at) VALUES(?,?,?,'viewer','Capacity fixture',?,'accepted',?,?,?,?,?,?,?,?)").run(applicationId, `SEAT-${suffix}-${index}`, userId, capacityEvent.id, 'Seat fixture', `seat-${index}-${suffix}@example.com`, '+77001234567', 'Астана', randomUUID(), `viewer:${capacityEvent.id}`, at, at);
     }
     assert.ok(fixtures.length, 'Capacity fixture needs at least one disposable reservation.');

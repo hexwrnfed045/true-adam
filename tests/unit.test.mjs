@@ -55,13 +55,13 @@ function event(overrides = {}) {
 }
 
 describe('account validation', () => {
-  it('normalizes registration identity and email without accepting an injected role', () => {
-    const result = validateRegister({ name: '  Ирина Тестовая  ', city: '  Алматы  ', email: '  MEMBER@EXAMPLE.TEST  ', password: 'long password 123', consent: true, role: 'admin' });
+  it('normalizes registration identity and defaults to the viewer role', () => {
+    const result = validateRegister({ name: '  Ирина Тестовая  ', city: '  Алматы  ', email: '  MEMBER@EXAMPLE.TEST  ', password: 'long password 123', consent: true });
     assert.deepEqual(result.fieldErrors, {});
     assert.equal(result.value.name, 'Ирина Тестовая');
     assert.equal(result.value.city, 'Алматы');
     assert.equal(result.value.email, 'member@example.test');
-    assert.equal(Object.hasOwn(result.value, 'role'), false);
+    assert.equal(result.value.role, 'viewer');
   });
 
   it('requires a real consent boolean, usable identity, valid email, and an adequate password', () => {
