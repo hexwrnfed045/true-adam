@@ -64,6 +64,20 @@ describe('account validation', () => {
     assert.equal(result.value.role, 'viewer');
   });
 
+  it('accepts each public account type and rejects staff or unknown registration roles', () => {
+    const input = { name: 'Ирина Тестовая', city: 'Алматы', email: 'member@example.test', password: 'long password 123', consent: true };
+    for (const role of ['viewer', 'model', 'organizer', 'brand', 'agent']) {
+      const result = validateRegister({ ...input, role });
+      assert.deepEqual(result.fieldErrors, {}, role);
+      assert.equal(result.value.role, role);
+    }
+    for (const role of ['admin', 'moderator', 'guest', 'member', 'unknown', null, [], {}]) {
+      const result = validateRegister({ ...input, role });
+      assert.equal(result.value, null, JSON.stringify(role));
+      assert.ok(result.fieldErrors.role, JSON.stringify(role));
+    }
+  });
+
   it('requires a real consent boolean, usable identity, valid email, and an adequate password', () => {
     const result = validateRegister({ name: '   ', city: ' ', email: 'invalid', password: 'short', consent: 'true' });
     assert.equal(result.value, null);

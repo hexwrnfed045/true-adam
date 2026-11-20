@@ -1,6 +1,6 @@
 /** Real HTTP integration tests. Run after `npm run build`; no real user database is opened. */
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
@@ -15,6 +15,8 @@ const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const require = createRequire(import.meta.url);
 const checks = [];
 const skipped = [];
+const legacyToken = randomBytes(32).toString('base64url');
+const legacyPhotoId = randomUUID();
 const interruption = new AbortController();
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 let temporaryDirectory;
@@ -161,6 +163,9 @@ async function runSuite() {
   const alice = { email: `alice-${suffix}@example.com`, cookie: '' };
   const bob = { email: `bob-${suffix}@example.com`, cookie: '' };
   const admin = { email: `admin-${suffix}@example.com`, cookie: '' };
+  const moderator = { email: `moderator-${suffix}@example.com`, cookie: '' };
+  const publicRoles = ['viewer', 'model', 'organizer', 'brand', 'agent'];
+  const roleAccounts = publicRoles.map(role => ({ role, email: `${role}-${suffix}@example.com`, cookie: '' }));
   const { events, courses, models, today } = await loadEditorialData();
   const viewers = events.filter(event => event.type === 'Показ' && event.openToPublic && event.seats > 0 && event.status === 'Открыт набор' && event.date >= today && event.deadline >= today);
   const course = courses.find(item => item.date >= today);
@@ -188,10 +193,15 @@ async function runSuite() {
   await request('cross-origin blocked', '/api/auth/register', { method: 'POST', origin: 'http://other.invalid', body: {}, expected: 403 });
   await request('missing Origin blocked', '/api/auth/register', { method: 'POST', origin: null, body: {}, expected: 403 });
   await request('invalid registration fields', '/api/auth/register', { method: 'POST', body: { name: ' ', email: 'broken', password: 'short', city: ' ', consent: false }, expected: 422 });
-  for (const [actor, name] of [[alice, 'Алиса Тест'], [bob, 'Боб Тест'], [admin, 'Администратор Тест']]) {
-    const { data, headers } = await request(`register ${name}`, '/api/auth/register', { method: 'POST', actor, body: { name, email: actor.email, password, city: 'Алматы', consent: true }, expected: 201 });
+  for (const role of ['admin', 'moderator', 'unknown']) {
+    const email = `forbidden-${role}-${suffix}@example.com`;
+    await request(`registration rejects ${role} role`, '/api/auth/register', { method: 'POST', body: { name: 'Запрещённая Роль', email, password, city: 'Алматы', consent: true, role }, expected: 422 });
+    await request(`rejected ${role} registration creates no account`, '/api/auth/login', { method: 'POST', body: { email, password }, expected: 401 });
+  }
+  for (const [actor, name] of [[alice, 'Алиса Тест'], [bob, 'Боб Тест'], [admin, 'Администратор Тест'], [moderator, 'Модератор Тест'], ...roleAccounts.map(actor => [actor, `Роль ${actor.role}`])]) {
+    const { data, headers } = await request(`register ${name}`, '/api/auth/register', { method: 'POST', actor, body: { name, email: actor.email, password, city: 'Алматы', consent: true, ...(actor.role ? { role: actor.role } : {}) }, expected: 201 });
     actor.id = data.user.id;
-    assert.equal(data.user.role, 'viewer');
+    assert.equal(data.user.role, actor.role || 'viewer');
     assert.match(headers.get('set-cookie'), /HttpOnly/);
     assert.match(headers.get('set-cookie'), /SameSite=Lax/);
   }
@@ -251,6 +261,21 @@ async function runSuite() {
   await request('guest image blocked', app.photos[0].url, { expected: 401 });
   await request('other user detail blocked', `/api/applications/${app.id}`, { actor: bob, expected: 404 });
   assert.equal((await request('other user applications isolated', '/api/applications', { actor: bob })).data.applications.length, 0);
+  for (const actor of roleAccounts) {
+    assert.equal((await request(`${actor.role} session retains selected role`, '/api/auth/me', { actor })).data.user.role, actor.role);
+    const personal = (await request(`${actor.role} creates own application`, '/api/applications', { method: 'POST', actor, body: form(actor), expected: 201 })).data.application;
+    actor.applicationId = personal.id;
+    assert.equal(personal.userId, actor.id);
+    assert.deepEqual((await request(`${actor.role} lists only personal data`, '/api/applications', { actor })).data.applications.map(item => item.id), [personal.id]);
+    await request(`${actor.role} sees own photo`, personal.photos[0].url, { actor });
+    await request(`${actor.role} cannot see another application`, `/api/applications/${app.id}`, { actor, expected: 404 });
+    await request(`${actor.role} cannot see another photo`, app.photos[0].url, { actor, expected: 404 });
+    await request(`${actor.role} has no global moderation access`, '/api/admin/applications', { actor, expected: 403 });
+    await request(`${actor.role} cannot list users`, '/api/admin/users', { actor, expected: 403 });
+    await request(`${actor.role} cannot grant staff access`, `/api/admin/users/${actor.id}`, { method: 'PATCH', actor, body: { role: 'moderator' }, expected: 403 });
+    await request(`${actor.role} profile cannot change role`, '/api/profile', { method: 'PATCH', actor, body: { name: `Роль ${actor.role}`, city: 'Алматы', role: 'moderator' } });
+    assert.equal((await request(`${actor.role} privilege injection has no effect`, '/api/auth/me', { actor })).data.user.role, actor.role);
+  }
   if (privateEvent) await request('private event viewer blocked', '/api/applications', { method: 'POST', actor: alice, body: form(alice, { ...plainFields, type: 'viewer', targetId: privateEvent.id }, []), expected: 422 });
   else noteSkip('private-event fixture unavailable');
   if (past) await request('past event blocked', '/api/applications', { method: 'POST', actor: alice, body: form(alice, { targetId: past.id }), expected: 422 });
@@ -286,7 +311,40 @@ async function runSuite() {
   await request('member cannot assign role', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: alice, body: { role: 'admin' }, expected: 403 });
   await request('admin promotes team member', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'admin' } });
   await request('admin demotes team member', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' } });
-  await request('last admin protected', `/api/admin/users/${admin.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' }, expected: 409 });
+  for (const role of [...publicRoles, 'moderator']) {
+    await request(`last admin cannot be downgraded to ${role}`, `/api/admin/users/${admin.id}`, { method: 'PATCH', actor: admin, body: { role }, expected: 409 });
+  }
+  await request('admin rejects unknown role', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'unknown' }, expected: 422 });
+  for (const role of [...publicRoles, 'moderator', 'admin']) {
+    await request(`admin assigns ${role}`, `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role } });
+    assert.equal((await request(`active session reflects ${role} assignment`, '/api/auth/me', { actor: bob })).data.user.role, role);
+  }
+  await request('admin returns test member to viewer', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' } });
+  await request('admin appoints moderator', `/api/admin/users/${moderator.id}`, { method: 'PATCH', actor: admin, body: { role: 'moderator' } });
+  assert.ok((await request('moderator lists global applications', '/api/admin/applications', { actor: moderator })).data.applications.some(item => item.id === app.id));
+  await request('moderator sees review photo', app.photos[0].url, { actor: moderator });
+  await request('moderator cannot list users', '/api/admin/users', { actor: moderator, expected: 403 });
+  await request('moderator cannot change roles', `/api/admin/users/${bob.id}`, { method: 'PATCH', actor: moderator, body: { role: 'admin' }, expected: 403 });
+  await request('moderator cannot promote self', `/api/admin/users/${moderator.id}`, { method: 'PATCH', actor: moderator, body: { role: 'admin' }, expected: 403 });
+  await request('moderator can review', `/api/admin/applications/${app.id}`, { method: 'PATCH', actor: moderator, body: { status: 'rejected', note: 'Проверено модератором.' } });
+  assert.equal((await request('owner sees moderator decision', `/api/applications/${app.id}`, { actor: alice })).data.application.adminNote, 'Проверено модератором.');
+  await request('admin revokes moderator', `/api/admin/users/${moderator.id}`, { method: 'PATCH', actor: admin, body: { role: 'viewer' } });
+  assert.equal((await request('existing session reflects moderator revocation', '/api/auth/me', { actor: moderator })).data.user.role, 'viewer');
+  await request('revoked moderator cannot list applications', '/api/admin/applications', { actor: moderator, expected: 403 });
+  await request('revoked moderator cannot review', `/api/admin/applications/${app.id}`, { method: 'PATCH', actor: moderator, body: { status: 'reviewing' }, expected: 403 });
+  await request('revoked moderator cannot read private photo', app.photos[0].url, { actor: moderator, expected: 404 });
+  await request('admin restores moderator for persistence check', `/api/admin/users/${moderator.id}`, { method: 'PATCH', actor: admin, body: { role: 'moderator' } });
+
+  for (const role of [...publicRoles, 'moderator', 'admin', 'viewer']) {
+    const assigned = spawnSync(process.execPath, [path.join(root, 'scripts', 'manage-admin.mjs'), '--email', bob.email, '--role', role], { cwd: root, env: { ...process.env, RUNWAY_DATA_DIR: databaseDirectory }, encoding: 'utf8' });
+    assert.equal(assigned.status, 0, assigned.stderr || assigned.stdout);
+    assert.equal((await request(`CLI assigns ${role} to existing account`, '/api/auth/me', { actor: bob })).data.user.role, role);
+  }
+  for (const role of ['viewer', 'moderator']) {
+    const protectedAdmin = spawnSync(process.execPath, [path.join(root, 'scripts', 'manage-admin.mjs'), '--email', admin.email, '--role', role], { cwd: root, env: { ...process.env, RUNWAY_DATA_DIR: databaseDirectory }, encoding: 'utf8' });
+    assert.notEqual(protectedAdmin.status, 0, 'CLI must protect the last administrator.');
+    assert.equal((await request(`CLI preserves last admin when assigning ${role}`, '/api/auth/me', { actor: admin })).data.user.role, 'admin');
+  }
   await request('password changed', '/api/auth/password', { method: 'POST', actor: alice, body: { currentPassword: password, newPassword: `${password}-new` } });
   await request('password old rejected', '/api/auth/login', { method: 'POST', body: { email: alice.email, password }, expected: 401 });
   const oldCookie = alice.cookie;
@@ -348,6 +406,15 @@ async function runSuite() {
   assert.equal(persistedFavorites.userId, alice.id); assert.deepEqual(persistedFavorites.ids, ['arman-kim', 'eva-sokolova']);
   assert.equal((await request('admin role survives server restart', '/api/auth/me', { actor: admin })).data.user.role, 'admin');
   await request('admin access survives server restart', '/api/admin/applications', { actor: admin });
+  assert.equal((await request('moderator role survives server restart', '/api/auth/me', { actor: moderator })).data.user.role, 'moderator');
+  await request('moderator access survives server restart', '/api/admin/applications', { actor: moderator });
+  await request('moderator photo access survives server restart', app.photos[0].url, { actor: moderator });
+  await request('moderator user restriction survives server restart', '/api/admin/users', { actor: moderator, expected: 403 });
+  for (const actor of roleAccounts) {
+    assert.equal((await request(`${actor.role} role survives server restart`, '/api/auth/me', { actor })).data.user.role, actor.role);
+    assert.deepEqual((await request(`${actor.role} data stays personal after restart`, '/api/applications', { actor })).data.applications.map(item => item.id), [actor.applicationId]);
+    await request(`${actor.role} still cannot view private photo after restart`, app.photos[0].url, { actor, expected: 404 });
+  }
   const adminUsers = (await request('private profile details stay out of admin user list', '/api/admin/users', { actor: admin })).data.users;
   const adminViewOfAlice = adminUsers.find(person => person.id === alice.id);
   assert.ok(adminViewOfAlice);
@@ -366,9 +433,13 @@ try {
   databaseDirectory = path.join(temporaryDirectory, '.runway-data');
   mkdirSync(databaseDirectory);
   const legacyDbPath = path.join(databaseDirectory, 'runway.sqlite');
+  const legacyImage = await require('sharp')({ create: { width: 10, height: 10, channels: 3, background: '#888888' } }).jpeg().toBuffer();
+  mkdirSync(path.join(databaseDirectory, 'uploads'));
+  writeFileSync(path.join(databaseDirectory, 'uploads', `${legacyPhotoId}.jpg`), legacyImage);
   const legacyDb = new DatabaseSync(legacyDbPath);
   try {
     legacyDb.exec(`
+      PRAGMA foreign_keys=ON;
       CREATE TABLE users (
         id TEXT PRIMARY KEY, name TEXT NOT NULL, email TEXT NOT NULL UNIQUE COLLATE NOCASE,
         password_hash TEXT NOT NULL, city TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('member','admin')),
@@ -376,8 +447,42 @@ try {
       );
       INSERT INTO users(id,name,email,password_hash,city,created_at)
       VALUES('legacy-user','Existing user','legacy@example.test','fixture-no-login','Алматы','2025-01-01');
+      CREATE TABLE sessions (
+        token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at INTEGER NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE applications (
+        id TEXT PRIMARY KEY, reference TEXT NOT NULL UNIQUE, user_id TEXT NOT NULL REFERENCES users(id),
+        type TEXT NOT NULL CHECK(type IN ('model','viewer','course','collaboration')), title TEXT NOT NULL,
+        target_id TEXT, model_id TEXT, status TEXT NOT NULL CHECK(status IN ('submitted','reviewing','accepted','rejected','withdrawn','waiting')),
+        name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL, city TEXT NOT NULL,
+        height INTEGER, measurements TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+        project_type TEXT NOT NULL DEFAULT '', project_date TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT NOT NULL, dedupe_key TEXT NOT NULL,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL, admin_note TEXT NOT NULL DEFAULT '',
+        UNIQUE(user_id,idempotency_key)
+      );
+      INSERT INTO applications(id,reference,user_id,type,title,status,name,email,phone,city,idempotency_key,dedupe_key,created_at,updated_at)
+      VALUES('legacy-application','LEGACY-1','legacy-user','model','Existing application','rejected','Existing user','legacy@example.test','+77001112233','Алматы','legacy-key','model:general','2025-01-01','2025-01-01');
+      CREATE TABLE photos (
+        id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+        file_name TEXT NOT NULL UNIQUE, original_name TEXT NOT NULL, size INTEGER NOT NULL, content_type TEXT NOT NULL
+      );
+      CREATE TABLE application_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+        status TEXT NOT NULL, at TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', actor_id TEXT NOT NULL REFERENCES users(id)
+      );
+      INSERT INTO application_history(application_id,status,at,note,actor_id)
+      VALUES('legacy-application','rejected','2025-01-01','Existing history','legacy-user');
+      CREATE TABLE favorites (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, model_id TEXT NOT NULL,
+        PRIMARY KEY(user_id,model_id)
+      );
+      INSERT INTO favorites(user_id,model_id) VALUES('legacy-user','arman-kim');
       PRAGMA user_version=2;
     `);
+    legacyDb.prepare('INSERT INTO sessions(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)').run(createHash('sha256').update(legacyToken).digest('hex'), 'legacy-user', Date.now() + 30 * 24 * 60 * 60 * 1000, '2025-01-01');
+    legacyDb.prepare('INSERT INTO photos(id,application_id,file_name,original_name,size,content_type) VALUES(?,?,?,?,?,?)').run(legacyPhotoId, 'legacy-application', `${legacyPhotoId}.jpg`, 'legacy.jpg', legacyImage.length, 'image/jpeg');
   } finally {
     legacyDb.close();
   }
@@ -385,14 +490,30 @@ try {
   await startServer(port);
   const migratedDb = new DatabaseSync(legacyDbPath);
   try {
-    const legacyUser = migratedDb.prepare("SELECT name, email, birth_date, height FROM users WHERE id='legacy-user'").get();
+    const legacyUser = migratedDb.prepare("SELECT name, email, birth_date, height, role FROM users WHERE id='legacy-user'").get();
     assert.equal(legacyUser?.name, 'Existing user');
     assert.equal(legacyUser?.email, 'legacy@example.test');
     assert.equal(legacyUser?.birth_date, '');
     assert.equal(legacyUser?.height, null);
+    assert.equal(legacyUser?.role, 'viewer');
+    assert.equal(migratedDb.prepare("SELECT COUNT(*) AS n FROM sessions WHERE user_id='legacy-user'").get().n, 1);
+    assert.equal(migratedDb.prepare("SELECT user_id FROM applications WHERE id='legacy-application'").get().user_id, 'legacy-user');
+    assert.equal(migratedDb.prepare("SELECT actor_id FROM application_history WHERE application_id='legacy-application'").get().actor_id, 'legacy-user');
+    assert.equal(migratedDb.prepare("SELECT model_id FROM favorites WHERE user_id='legacy-user'").get().model_id, 'arman-kim');
+    assert.equal(migratedDb.prepare("SELECT application_id FROM photos WHERE id=?").get(legacyPhotoId).application_id, 'legacy-application');
+    assert.deepEqual(migratedDb.prepare('PRAGMA foreign_key_check').all(), []);
+    checks.push('legacy migration preserves role, sessions and all dependent foreign keys');
   } finally {
     migratedDb.close();
   }
+  const legacyActor = { cookie: `runway-session=${legacyToken}` };
+  const legacyUser = (await request('legacy session remains valid after migration', '/api/auth/me', { actor: legacyActor })).data.user;
+  assert.equal(legacyUser.id, 'legacy-user');
+  assert.equal(legacyUser.role, 'viewer');
+  const legacyApplication = (await request('legacy application and history remain available', '/api/applications/legacy-application', { actor: legacyActor })).data.application;
+  assert.equal(legacyApplication.history[0].note, 'Existing history');
+  assert.deepEqual((await request('legacy favorites remain available', '/api/favorites', { actor: legacyActor })).data.ids, ['arman-kim']);
+  assert.deepEqual((await request('legacy private photo remains available', legacyApplication.photos[0].url, { actor: legacyActor })).data, legacyImage);
   await runSuite();
   console.log(JSON.stringify({ passed: checks.length, skipped, checks }, null, 2));
 } catch (error) {
