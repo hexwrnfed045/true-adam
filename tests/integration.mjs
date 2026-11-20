@@ -192,6 +192,139 @@ async function runSuite() {
     for (const [index, file] of files.entries()) body.append('photos', file instanceof File ? file : new File([file], `portrait-${index}.jpg`, { type: 'image/jpeg' }));
     return body;
   }
+  function editForm(actor, application, overrides = {}, files = []) {
+    const body = new FormData();
+    const fields = {
+      action: 'edit', expectedUpdatedAt: application.updatedAt,
+      type: application.type, targetId: application.targetId || '', modelId: application.modelId || '',
+      name: application.name, email: actor.email, phone: application.phone, city: application.city,
+      height: application.height ?? '', age: application.age ?? '', measurements: application.measurements,
+      description: application.description, projectType: application.projectType, projectDate: application.projectDate,
+      consent: 'true', photoIds: JSON.stringify(application.photos.map(photo => photo.id)), ...overrides,
+    };
+    for (const [key, value] of Object.entries(fields)) body.set(key, String(value));
+    for (const [index, file] of files.entries()) body.append('photos', file instanceof File ? file : new File([file], `edited-${index}.jpg`, { type: 'image/jpeg' }));
+    return body;
+  }
+
+  async function editingChecks() {
+    const owner = { email: `editor-${suffix}@example.com`, cookie: '' };
+    const other = { email: `editor-other-${suffix}@example.com`, cookie: '' };
+    for (const [actor, name] of [[owner, 'Редактор Анкеты'], [other, 'Другой Редактор']]) {
+      actor.id = (await request(`register ${name}`, '/api/auth/register', {
+        method: 'POST', actor, body: { name, email: actor.email, password, city: 'Алматы', consent: true }, expected: 201,
+      })).data.user.id;
+    }
+    await request('guest cannot load saved application template', '/api/application-template?type=model', { expected: 401 });
+    await request('unknown template type is rejected', '/api/application-template?type=admin', { actor: owner, expected: 422 });
+    assert.equal((await request('new account has no application template', '/api/application-template?type=model', { actor: owner })).data.application, null);
+    const originalKey = randomUUID();
+    const original = (await request('create application for editing', '/api/applications', { method: 'POST', actor: owner, body: form(owner, { idempotencyKey: originalKey }), expected: 201 })).data.application;
+    const otherApp = (await request('create isolated foreign photo fixture', '/api/applications', { method: 'POST', actor: other, body: form(other), expected: 201 })).data.application;
+    assert.equal((await request('new submission becomes reusable template', '/api/application-template?type=model', { actor: owner })).data.application.id, original.id);
+    assert.equal((await request('template type does not leak across form types', '/api/application-template?type=viewer', { actor: owner })).data.application, null);
+    assert.equal((await request('other account receives only its own template', '/api/application-template?type=model', { actor: other })).data.application.id, otherApp.id);
+    assert.equal((await request('template owner cannot be selected through query injection', `/api/application-template?type=model&userId=${other.id}`, { actor: owner })).data.application.userId, owner.id);
+    await request('guest cannot edit an application', `/api/applications/${original.id}`, { method: 'PATCH', body: editForm(owner, original), expected: 401 });
+    for (const [actor, label] of [[other, 'another user'], [admin, 'administrator'], [moderator, 'moderator']]) {
+      await request(`${label} cannot edit another user's application`, `/api/applications/${original.id}`, { method: 'PATCH', actor, body: editForm(owner, original), expected: 404 });
+    }
+    const accepted = (await request('accept application before author correction', `/api/admin/applications/${original.id}`, { method: 'PATCH', actor: admin, body: { status: 'accepted', note: 'Первоначальное подтверждение.' } })).data.application;
+    const corrections = { name: 'Исправленное Имя', city: 'Астана', phone: '+7 701 888 99 00', age: '24', height: '182', measurements: '92/66/94', description: 'Новый опыт подиума после редактирования.' };
+    let current = (await request('owner edits accepted application and keeps its photo', `/api/applications/${accepted.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, accepted, corrections) })).data.application;
+    assert.equal(current.id, original.id); assert.equal(current.reference, original.reference); assert.equal(current.createdAt, original.createdAt);
+    assert.ok(current.updatedAt > accepted.updatedAt);
+    assert.equal(current.status, 'submitted'); assert.equal(current.adminNote, '');
+    assert.equal(current.name, corrections.name); assert.equal(current.city, corrections.city); assert.equal(current.phone, corrections.phone);
+    assert.equal(current.age, 24); assert.equal(current.height, 182); assert.equal(current.measurements, corrections.measurements); assert.equal(current.description, corrections.description);
+    assert.equal(current.email, owner.email); assert.equal(current.userId, owner.id);
+    assert.deepEqual(current.photos.map(photo => photo.id), original.photos.map(photo => photo.id));
+    assert.equal(current.history.length, accepted.history.length + 1);
+    assert.ok(current.history.some(item => item.status === 'accepted' && item.note === 'Первоначальное подтверждение.'));
+    assert.equal(current.history.at(-1).status, 'submitted'); assert.ok(current.history.at(-1).note);
+    await request('stale moderator decision cannot approve unseen author corrections', `/api/admin/applications/${current.id}`, {
+      method: 'PATCH', actor: moderator, body: { status: 'accepted', note: 'Устаревшее подтверждение.', expectedUpdatedAt: accepted.updatedAt }, expected: 409,
+    });
+    await request('moderation requires the reviewed application version', `/api/admin/applications/${current.id}`, {
+      method: 'PATCH', actor: moderator, body: { status: 'accepted', note: 'Решение без версии.' }, reviewVersion: false, expected: 409,
+    });
+    assert.deepEqual((await request('rejected stale reviews preserve author corrections', `/api/applications/${current.id}`, { actor: owner })).data.application, current);
+    current = (await request('moderator may review the refreshed corrected application', `/api/admin/applications/${current.id}`, {
+      method: 'PATCH', actor: moderator, body: { status: 'reviewing', note: 'Проверяем исправленную анкету.', expectedUpdatedAt: current.updatedAt },
+    })).data.application;
+    assert.equal(current.status, 'reviewing'); assert.equal(current.adminNote, 'Проверяем исправленную анкету.');
+    const saved = (await request('edited data and photo become the saved template', '/api/application-template?type=model', { actor: owner })).data.application;
+    assert.equal(saved.name, corrections.name); assert.equal(saved.phone, corrections.phone); assert.equal(saved.height, 182);
+    assert.equal(saved.photos[0].id, original.photos[0].id);
+    await request('stale application editor cannot overwrite a newer save', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, accepted, { phone: '+77009998877' }), expected: 409 });
+    const withoutVersion = editForm(owner, current); withoutVersion.delete('expectedUpdatedAt');
+    await request('edit requires a version to avoid losing concurrent decisions', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: withoutVersion, expected: 409 });
+    for (const [field, value] of [['type', 'collaboration'], ['targetId', 'another-event'], ['modelId', 'arman-kim'], ['email', other.email]]) {
+      await request(`edit cannot change protected ${field}`, `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { [field]: value }), expected: 422 });
+    }
+    await request('edit rejects status and ownership privilege injection', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { status: 'accepted', userId: other.id, adminNote: 'Поддельное решение', role: 'admin' }), expected: 422 });
+    for (const [field, value] of [['phone', '-------'], ['age', '17'], ['height', '139'], ['measurements', '90/20/90'], ['consent', 'false']]) {
+      await request(`edit validates ${field}`, `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { [field]: value }), expected: 422 });
+    }
+    await request('editing a model cannot remove every photo', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { photoIds: '[]' }), expected: 422 });
+    await request('editing cannot retain a foreign private photo', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { photoIds: JSON.stringify([otherApp.photos[0].id]) }), expected: [404, 422] });
+    await request('retained and uploaded edit photos share the maximum count', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, {}, [image, image, image]), expected: 422 });
+    await request('invalid replacement photo cannot erase a saved photo', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { photoIds: '[]' }, [new File(['invalid image'], 'bad.jpg', { type: 'image/jpeg' })]), expected: 422 });
+    const unchanged = (await request('failed edits preserve the complete saved application', `/api/applications/${current.id}`, { actor: owner })).data.application;
+    assert.deepEqual(unchanged, current);
+    assert.deepEqual((await request('failed edits do not replace the reusable template', '/api/application-template?type=model', { actor: owner })).data.application, current);
+    assert.equal((await request('original create retry still returns the edited record', '/api/applications', { method: 'POST', actor: owner, body: form(owner, { idempotencyKey: originalKey }) })).data.application.id, original.id);
+
+    const copiedKey = randomUUID();
+    const copiedFields = { ...plainFields, type: 'collaboration', projectDate: collaborationDate.toISOString().slice(0, 10), projectType: 'Editorial', description: 'Новый проект с фотографией из своей сохранённой анкеты.', photoIds: JSON.stringify([current.photos[0].id]), idempotencyKey: copiedKey };
+    const copied = (await request('new application reuses a saved photo without uploading it', '/api/applications', { method: 'POST', actor: owner, body: form(owner, copiedFields, []), expected: 201 })).data.application;
+    assert.equal(copied.photos.length, 1); assert.notEqual(copied.photos[0].id, current.photos[0].id);
+    const copiedImage = (await request('reused photo has independent private storage', copied.photos[0].url, { actor: owner })).data;
+    assert.deepEqual(copiedImage, (await request('saved source photo is still readable', current.photos[0].url, { actor: owner })).data);
+    assert.equal((await request('saved-photo create retry is idempotent', '/api/applications', { method: 'POST', actor: owner, body: form(owner, copiedFields, []) })).data.application.id, copied.id);
+    await request('new application cannot reuse another account photo', '/api/applications', { method: 'POST', actor: owner, body: form(owner, { ...copiedFields, idempotencyKey: randomUUID(), photoIds: JSON.stringify([otherApp.photos[0].id]) }, []), expected: [404, 422] });
+    await request('malformed saved-photo references are rejected', '/api/applications', { method: 'POST', actor: owner, body: form(owner, { ...copiedFields, idempotencyKey: randomUUID(), photoIds: '{broken' }, []), expected: 422 });
+
+    current = (await request('reject corrected model before duplicate check', `/api/admin/applications/${current.id}`, { method: 'PATCH', actor: admin, body: { status: 'rejected', note: 'Нужен повторный отбор.' } })).data.application;
+    const replacement = (await request('create another active model application', '/api/applications', { method: 'POST', actor: owner, body: form(owner), expected: 201 })).data.application;
+    await request('editing rejected application cannot create active duplicate', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, corrections), expected: 409 });
+    const withdrawn = (await request('withdraw duplicate so original may be corrected', `/api/applications/${replacement.id}`, { method: 'PATCH', actor: owner, body: { action: 'withdraw' } })).data.application;
+    await request('withdrawn application stays read-only', `/api/applications/${withdrawn.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, withdrawn), expected: 409 });
+    current = (await request('rejected application can be corrected once duplicate is withdrawn', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, corrections) })).data.application;
+    assert.equal(current.status, 'submitted'); assert.equal(current.adminNote, '');
+    const removedPhoto = current.photos[0];
+    current = (await request('owner replaces submitted application photograph', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, current, { photoIds: '[]' }, [image]) })).data.application;
+    assert.equal(current.photos.length, 1); assert.notEqual(current.photos[0].id, removedPhoto.id);
+    await request('removed application photo is no longer accessible', removedPhoto.url, { actor: owner, expected: 404 });
+    assert.deepEqual((await request('copied photo survives removal from the original application', copied.photos[0].url, { actor: owner })).data, copiedImage);
+    assert.equal((await request('saved-photo retry survives deletion of its original source', '/api/applications', { method: 'POST', actor: owner, body: form(owner, copiedFields, []) })).data.application.id, copied.id);
+    assert.equal((await request('updated saved template uses replacement photo', '/api/application-template?type=model', { actor: owner })).data.application.photos[0].id, current.photos[0].id);
+    assert.equal((await request('collaboration template remains separate from corrected model', '/api/application-template?type=collaboration', { actor: owner })).data.application.id, copied.id);
+    await request('cross-origin application edit is blocked', `/api/applications/${current.id}`, { method: 'PATCH', actor: owner, origin: 'http://other.invalid', body: editForm(owner, current), expected: 403 });
+
+    const unavailable = events.find(item => item.status !== 'Открыт набор' || item.date < today || item.deadline < today);
+    assert.ok(unavailable, 'editing regression fixture requires an unavailable editorial event');
+    const fixtures = new DatabaseSync(path.join(databaseDirectory, 'runway.sqlite'));
+    let closedId;
+    let pastProjectId;
+    try {
+      const seed = fixtures.prepare('SELECT * FROM applications WHERE id=?').get(current.id);
+      const insert = fields => {
+        const row = { ...seed, id: randomUUID(), reference: `EDIT-${randomUUID()}`, idempotency_key: randomUUID(), ...fields };
+        const columns = Object.keys(row);
+        fixtures.prepare(`INSERT INTO applications(${columns.join(',')}) VALUES(${columns.map(() => '?').join(',')})`).run(...columns.map(column => row[column]));
+        return row.id;
+      };
+      closedId = insert({ target_id: unavailable.id, dedupe_key: `model:${unavailable.id}` });
+      pastProjectId = insert({ type: 'collaboration', target_id: null, project_date: '1900-01-01', project_type: 'Editorial', dedupe_key: `past-project:${suffix}` });
+    } finally { fixtures.close(); }
+    const closed = (await request('read closed-event application fixture', `/api/applications/${closedId}`, { actor: owner })).data.application;
+    await request('closed or past event application cannot be edited', `/api/applications/${closed.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, closed, {}, [image]), expected: 409 });
+    const pastProject = (await request('read past collaboration fixture', `/api/applications/${pastProjectId}`, { actor: owner })).data.application;
+    await request('past collaboration application cannot be edited', `/api/applications/${pastProject.id}`, { method: 'PATCH', actor: owner, body: editForm(owner, pastProject), expected: 409 });
+    assert.equal((await request('blocked edits keep the existing reusable source', '/api/application-template?type=model', { actor: owner })).data.application.id, current.id);
+    return { owner, other, current, otherApp, copied, copiedImage };
+  }
   const plainFields = { height: '', age: '', measurements: '' };
 
   for (const route of ['/', '/models', '/events', '/shoots', '/casting', '/academy', '/backstage', '/contact', '/login', '/register', '/account', '/admin']) await requestHTML(`HTML route ${route}`, route);
@@ -345,6 +478,7 @@ async function runSuite() {
   await request('revoked moderator cannot review', `/api/admin/applications/${app.id}`, { method: 'PATCH', actor: moderator, body: { status: 'reviewing' }, expected: 403 });
   await request('revoked moderator cannot read private photo', app.photos[0].url, { actor: moderator, expected: 404 });
   await request('admin restores moderator for persistence check', `/api/admin/users/${moderator.id}`, { method: 'PATCH', actor: admin, body: { role: 'moderator' } });
+  const editedPersistence = await editingChecks();
 
   for (const role of [...publicRoles, 'moderator', 'admin', 'viewer']) {
     const assigned = spawnSync(process.execPath, [path.join(root, 'scripts', 'manage-admin.mjs'), '--email', bob.email, '--role', role], { cwd: root, env: { ...process.env, RUNWAY_DATA_DIR: databaseDirectory }, encoding: 'utf8' });
@@ -384,6 +518,11 @@ async function runSuite() {
     assert.ok(fixtures.length, 'Capacity fixture needs at least one disposable reservation.');
     const waiting = (await request('full event waitlist', '/api/applications', { method: 'POST', actor: bob, body: form(bob, { ...plainFields, type: 'viewer', targetId: capacityEvent.id }, []), expected: 201 })).data.application;
     assert.equal(waiting.status, 'waiting');
+    const editedWaiting = (await request('editing a full-show booking preserves the waitlist', `/api/applications/${waiting.id}`, { method: 'PATCH', actor: bob, body: editForm(bob, waiting, { phone: '+77005554433' }) })).data.application;
+    assert.equal(editedWaiting.status, 'waiting'); assert.equal(editedWaiting.id, waiting.id);
+    const rejectedWaiting = (await request('reject full-show booking before author correction', `/api/admin/applications/${waiting.id}`, { method: 'PATCH', actor: admin, body: { status: 'rejected', note: 'Уточните контактные данные.' } })).data.application;
+    const resubmittedWaiting = (await request('editing rejected booking cannot oversell a full show', `/api/applications/${waiting.id}`, { method: 'PATCH', actor: bob, body: editForm(bob, rejectedWaiting, { phone: '+77005554422' }) })).data.application;
+    assert.equal(resubmittedWaiting.status, 'waiting');
     await request('capacity oversell prevented', `/api/admin/applications/${waiting.id}`, { method: 'PATCH', actor: admin, body: { status: 'accepted' }, expected: 409 });
     fixtureDatabase.prepare('DELETE FROM applications WHERE id=?').run(fixtures[0]);
     await request('released seat accepted', `/api/admin/applications/${waiting.id}`, { method: 'PATCH', actor: admin, body: { status: 'accepted', note: 'Освободилось место.' } });
@@ -405,6 +544,11 @@ async function runSuite() {
   const port = Number(new URL(base).port);
   await stopServer();
   await startServer(port);
+  const editedAfterRestart = (await request('edited application and replacement photo survive restart', `/api/applications/${editedPersistence.current.id}`, { actor: editedPersistence.owner })).data.application;
+  assert.deepEqual(editedAfterRestart, editedPersistence.current);
+  assert.deepEqual((await request('saved application template survives restart', '/api/application-template?type=model', { actor: editedPersistence.owner })).data.application, editedPersistence.current);
+  assert.equal((await request('template isolation survives restart', '/api/application-template?type=model', { actor: editedPersistence.other })).data.application.id, editedPersistence.otherApp.id);
+  assert.deepEqual((await request('copied template photo survives restart independently', editedPersistence.copied.photos[0].url, { actor: editedPersistence.owner })).data, editedPersistence.copiedImage);
   const persistedUser = (await request('session survives server restart', '/api/auth/me', { actor: alice })).data.user;
   assert.equal(persistedUser.id, alice.id); assert.equal(persistedUser.name, 'Алиса Новый Профиль'); assert.equal(alice.cookie, cookieBeforeRestart);
   for (const [field, value] of Object.entries(savedDetails)) assert.equal(persistedUser[field], value);

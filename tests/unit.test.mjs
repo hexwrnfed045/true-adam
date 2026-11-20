@@ -1,6 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { calculateAge } from '../src/lib/profile.ts';
+import { applicationEditReason, canEditApplication } from '../src/lib/application-editing.ts';
+import { courses } from '../src/data/courses.ts';
 import {
   isValidDate,
   validateApplicationFields,
@@ -288,5 +290,92 @@ describe('profile birth date and application autofill', () => {
       height: '179', chest: '92', waist: '65', hips: '91', description: user.experience,
     });
     assert.equal(applicationDefaults(user, [], 'course', '2026-11-12').age, '25');
+  });
+});
+
+describe('saved application templates', () => {
+  const user = {
+    id: 'template-owner', name: 'Имя профиля', city: 'Алматы', phone: '+77001112233',
+    birthDate: '2000-11-13', height: 170, chest: 87, waist: 62, hips: 89, experience: 'Опыт профиля',
+  };
+  const template = {
+    id: 'saved-model', userId: user.id, type: 'model', name: 'Исправленная Анкета', city: 'Астана',
+    phone: '+77007778899', age: 27, height: 181, measurements: '93 / 66 / 94',
+    description: 'Сохранённый опыт модели', createdAt: '2026-10-01', updatedAt: '2026-11-20',
+    targetId: 'old-casting', modelId: null, projectDate: '', projectType: '',
+    consent: true, idempotencyKey: requestKey, photos: [{ id: 'saved-photo', url: '/api/uploads/saved-photo' }],
+  };
+
+  it('prefills the corrected same-owner application instead of stale profile values', () => {
+    const defaults = applicationDefaults(user, [], 'model', '2026-11-20', template);
+    assert.deepEqual(defaults, {
+      name: template.name, city: template.city, phone: template.phone, age: '27', height: '181',
+      chest: '93', waist: '66', hips: '94', description: template.description,
+    });
+    for (const field of ['targetId', 'modelId', 'projectDate', 'projectType', 'consent', 'idempotencyKey', 'photos']) {
+      assert.equal(Object.hasOwn(defaults, field), false, `new form must choose its own ${field}`);
+    }
+  });
+
+  it('ignores another account or another application type when filling a new form', () => {
+    const fallback = applicationDefaults(user, [], 'model', '2026-11-20');
+    assert.deepEqual(applicationDefaults(user, [], 'model', '2026-11-20', { ...template, userId: 'someone-else' }), fallback);
+    assert.deepEqual(applicationDefaults(user, [], 'model', '2026-11-20', { ...template, type: 'course' }), fallback);
+  });
+
+  it('reuses collaboration contacts without copying the old project brief, date or consent', () => {
+    const collaboration = {
+      ...template, type: 'collaboration', description: 'Старый бюджет и коммерческие условия проекта',
+      projectDate: '2030-12-01', projectType: 'Editorial', modelId: 'old-model',
+    };
+    const defaults = applicationDefaults(user, [], 'collaboration', '2026-11-20', collaboration);
+    assert.equal(defaults.name, collaboration.name);
+    assert.equal(defaults.city, collaboration.city);
+    assert.equal(defaults.phone, collaboration.phone);
+    assert.equal(defaults.description, '');
+    for (const field of ['targetId', 'modelId', 'projectDate', 'projectType', 'consent', 'idempotencyKey']) {
+      assert.equal(Object.hasOwn(defaults, field), false, field);
+    }
+    assert.equal(applicationDefaults(user, [], 'viewer', '2026-11-20', { ...template, type: 'viewer' }).description, '');
+  });
+
+  it('keeps a saved course motivation only for another course application', () => {
+    const savedCourse = { ...template, type: 'course', description: 'Хочу подготовиться к первому показу.' };
+    assert.equal(applicationDefaults(user, [], 'course', '2026-11-20', savedCourse).description, savedCourse.description);
+    assert.equal(applicationDefaults(user, [], 'model', '2026-11-20', savedCourse).description, user.experience);
+  });
+});
+
+describe('application editing availability', () => {
+  const general = { type: 'model', targetId: null, modelId: null, status: 'submitted', projectDate: '' };
+
+  it('allows an own general model application to be corrected and resubmitted after review', () => {
+    for (const status of ['submitted', 'reviewing', 'accepted', 'rejected', 'waiting']) {
+      assert.equal(canEditApplication({ ...general, status }, '2030-01-01'), true, status);
+      assert.equal(applicationEditReason({ ...general, status }, '2030-01-01'), null, status);
+    }
+    assert.equal(canEditApplication({ ...general, status: 'withdrawn' }, '2030-01-01'), false);
+    assert.equal(typeof applicationEditReason({ ...general, status: 'withdrawn' }, '2030-01-01'), 'string');
+  });
+
+  it('closes editing with the actual event deadline and public spectator rules', () => {
+    const open = events.find(item => item.status === 'Открыт набор' && item.date >= item.deadline);
+    assert.ok(open, 'editorial data must contain an event with an application deadline');
+    assert.equal(canEditApplication({ ...general, targetId: open.id }, open.deadline), true);
+    assert.equal(canEditApplication({ ...general, targetId: open.id }, '2099-01-01'), false);
+    const privateEvent = events.find(item => !item.openToPublic);
+    assert.ok(privateEvent);
+    assert.equal(canEditApplication({ ...general, type: 'viewer', targetId: privateEvent.id }, privateEvent.deadline), false);
+    const unavailable = events.find(item => ['Отменено', 'Закрыто', 'Завершено'].includes(item.status));
+    assert.ok(unavailable);
+    assert.equal(canEditApplication({ ...general, targetId: unavailable.id }, '2000-01-01'), false);
+    assert.equal(canEditApplication({ ...general, targetId: 'missing-event' }, '2000-01-01'), false);
+  });
+
+  it('keeps past courses and past collaboration projects read-only', () => {
+    assert.ok(courses.length);
+    assert.equal(canEditApplication({ ...general, type: 'course', targetId: courses[0].id }, '2099-01-01'), false);
+    assert.equal(canEditApplication({ ...general, type: 'collaboration', projectDate: '2030-05-20' }, '2030-05-20'), true);
+    assert.equal(canEditApplication({ ...general, type: 'collaboration', projectDate: '2030-05-20' }, '2030-05-21'), false);
   });
 });
