@@ -1,15 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { validateRegister, validateLogin, validateProfile, validatePasswordChange, validateApplicationFields, APPLICATION_STATUSES } from "@/lib/validation";
+import { validateRegister, validateLogin, validateProfile, validatePasswordChange, validateApplicationFields, APPLICATION_STATUSES, APPLICATION_TYPES } from "@/lib/validation";
 import { models } from "@/data/models";
 import { canModerate, isUserRole } from "@/lib/roles";
-import type { ApplicationStatus, User } from "@/types/api";
-import { applicationById, createApplication, idempotentApplication, listApplications, privatePhoto, reviewApplication, validateApplicationTarget, withdrawApplication } from "./applications";
+import type { ApplicationStatus, ApplicationType, User } from "@/types/api";
+import { applicationById, applicationTemplate, createApplication, editApplication, idempotentApplication, listApplications, privatePhoto, reviewApplication, validateApplicationTarget, withdrawApplication } from "./applications";
+import { applicationEditReason } from "@/lib/application-editing";
 import { createSession, deleteSession, hashPassword, ownUser, publicUser, requireAdmin, requireModerator, requireUser, sessionCookie, sessionUser, userByEmail, userById, verifyPassword } from "./auth";
 import { database, transaction, uploadsDirectory } from "./db";
 import { ApiFailure, assertOrigin, digest, handle, json, rateLimit, readJson, validated } from "./http";
-import { applicationFingerprint, preparePhotos, readMultipart } from "./uploads";
+import { applicationFingerprint, assertPhotoCount, preparePhotos, prepareSavedPhotos, readMultipart, readPhotoIds } from "./uploads";
 
 type IdContext = { params: Promise<{ id: string }> };
 const minute = 60_000;
@@ -85,15 +86,71 @@ export function authPassword(request: Request) { return handle(async () => {
 }); }
 export function applicationsGet(request: Request) { return handle(() => { const user = requireUser(request); return json({ applications: listApplications(user.id) }); }); }
 export function applicationGet(request: Request, context: IdContext) { return handle(async () => { const user = requireUser(request); const { id } = await context.params; const application = applicationById(id); if (!application || application.userId !== user.id) throw new ApiFailure(404, "Заявка не найдена."); return json({ application }); }); }
-export function applicationsPost(request: Request) { return handle(async () => {
-  const user = requireUser(request); mutation(request, user); const form = await readMultipart(request); const fields: Record<string, unknown> = {};
-  for (const [key, value] of form.entries()) { if (key === "photos") continue; if (typeof value !== "string" || fields[key] !== undefined) throw new ApiFailure(422, "Некорректные поля формы."); fields[key] = value; }
-  const input = validated(validateApplicationFields(fields)); if (input.email !== user.email) throw new ApiFailure(422, "Email заявки должен совпадать с email вашего аккаунта.", { email: "Используйте email аккаунта." });
-  const fingerprint = await applicationFingerprint(input, form);
-  const previous = idempotentApplication(user.id, input.idempotencyKey, fingerprint); if (previous) { if (previous.type !== input.type || previous.targetId !== input.targetId || previous.modelId !== input.modelId) throw new ApiFailure(409, "Идентификатор отправки уже использован. Обновите форму."); return json({ application: previous }); }
-  rateLimit(`application:${user.id}`, 30, 60 * minute); validateApplicationTarget(input); const photos = await preparePhotos(form, input.type === "model"); const result = createApplication(user, input, photos, fingerprint); return json({ application: result.application }, result.repeated ? 200 : 201);
+export function applicationTemplateGet(request: Request) { return handle(() => {
+  const user = requireUser(request);
+  const type = new URL(request.url).searchParams.get("type") || "model";
+  if (!APPLICATION_TYPES.includes(type as ApplicationType)) throw new ApiFailure(422, "Выберите тип заявки.", { type: "Неизвестный тип заявки." });
+  return json({ application: applicationTemplate(user.id, type as ApplicationType) });
 }); }
-export function applicationPatch(request: Request, context: IdContext) { return handle(async () => { const user = requireUser(request); mutation(request, user); const { id } = await context.params; const body = await readJson(request); if (body.action !== "withdraw") throw new ApiFailure(422, "Допустимое действие: отозвать заявку."); return json({ application: withdrawApplication(user, id) }); }); }
+function multipartFields(form: FormData) {
+  const fields: Record<string, unknown> = {};
+  for (const [key, value] of form.entries()) {
+    if (key === "photos") continue;
+    if (typeof value !== "string" || fields[key] !== undefined) throw new ApiFailure(422, "Некорректные поля формы.");
+    fields[key] = value;
+  }
+  return fields;
+}
+export function applicationsPost(request: Request) { return handle(async () => {
+  const user = requireUser(request); mutation(request, user); const form = await readMultipart(request); const fields = multipartFields(form);
+  const input = validated(validateApplicationFields(fields)); if (input.email !== user.email) throw new ApiFailure(422, "Email заявки должен совпадать с email вашего аккаунта.", { email: "Используйте email аккаунта." });
+  const photoIds = readPhotoIds(fields.photoIds) ?? [];
+  assertPhotoCount(photoIds.length + form.getAll("photos").length, input.type === "model");
+  const fingerprint = await applicationFingerprint(input, form, photoIds);
+  const previous = idempotentApplication(user.id, input.idempotencyKey, fingerprint); if (previous) { if (previous.type !== input.type || previous.targetId !== input.targetId || previous.modelId !== input.modelId) throw new ApiFailure(409, "Идентификатор отправки уже использован. Обновите форму."); return json({ application: previous }); }
+  rateLimit(`application:${user.id}`, 30, 60 * minute); validateApplicationTarget(input); const savedPhotos = prepareSavedPhotos(user.id, photoIds); const photos = [...savedPhotos, ...await preparePhotos(form, false)]; const result = createApplication(user, input, photos, fingerprint); return json({ application: result.application }, result.repeated ? 200 : 201);
+}); }
+export function applicationPatch(request: Request, context: IdContext) { return handle(async () => {
+  const user = requireUser(request); mutation(request, user); const { id } = await context.params;
+  const current = applicationById(id);
+  if (!current || current.userId !== user.id) throw new ApiFailure(404, "Заявка не найдена.");
+  const multipart = request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data;");
+  const form = multipart ? await readMultipart(request) : new FormData();
+  const body = multipart ? multipartFields(form) : await readJson(request);
+  if (body.action === "withdraw") return json({ application: withdrawApplication(user, id) });
+  if (body.action !== "edit") throw new ApiFailure(422, "Допустимые действия: редактировать или отозвать заявку.");
+  if (typeof body.expectedUpdatedAt !== "string" || body.expectedUpdatedAt !== current.updatedAt) throw new ApiFailure(409, "Заявка уже изменилась. Обновите данные перед редактированием.");
+  const unavailable = applicationEditReason(current);
+  if (unavailable) throw new ApiFailure(409, unavailable);
+  for (const field of ["status", "userId", "user_id", "role", "adminNote", "admin_note", "id", "reference", "createdAt", "updatedAt"]) {
+    if (body[field] !== undefined) throw new ApiFailure(422, "Служебные поля заявки изменять нельзя.");
+  }
+  for (const field of ["type", "targetId", "modelId"] as const) {
+    if (body[field] !== undefined && (body[field] || null) !== (current[field] || null)) throw new ApiFailure(422, "Тип и выбранный проект отправленной заявки изменить нельзя.", { [field]: "Для другого проекта создайте новую заявку." });
+  }
+  if (body.email !== undefined && (typeof body.email !== "string" || body.email.trim().toLowerCase() !== user.email)) throw new ApiFailure(422, "Используйте текущий email аккаунта.", { email: "Email заявки должен совпадать с аккаунтом." });
+  const fields: Record<string, unknown> = {
+    type: current.type, targetId: current.targetId ?? "", modelId: current.modelId ?? "", email: user.email,
+    name: current.name, phone: current.phone, city: current.city,
+    age: current.age == null ? "" : String(current.age), height: current.height == null ? "" : String(current.height),
+    measurements: current.measurements, description: current.description, projectType: current.projectType, projectDate: current.projectDate,
+    consent: body.consent, idempotencyKey: randomUUID(),
+  };
+  for (const field of ["name", "phone", "city", "age", "height", "measurements", "description", "projectType", "projectDate"]) {
+    if (body[field] === undefined) continue;
+    const value = body[field];
+    if (["age", "height"].includes(field) && (typeof value === "number" || value === null)) fields[field] = value === null ? "" : String(value);
+    else if (typeof value === "string") fields[field] = value;
+    else throw new ApiFailure(422, "Некорректное значение поля.", { [field]: "Проверьте значение." });
+  }
+  const input = validated(validateApplicationFields(fields));
+  const retainedPhotoIds = readPhotoIds(body.photoIds);
+  const retained = retainedPhotoIds ?? current.photos.map(photo => photo.id);
+  if (retained.some(photoId => !current.photos.some(photo => photo.id === photoId))) throw new ApiFailure(422, "Сохранить можно только фотографии этой заявки.", { photos: "Выберите фотографии редактируемой заявки." });
+  assertPhotoCount(retained.length + form.getAll("photos").length, current.type === "model");
+  const photos = await preparePhotos(form, false);
+  return json({ application: editApplication(user, id, body.expectedUpdatedAt, input, retainedPhotoIds, photos) });
+}); }
 export function uploadGet(request: Request, context: IdContext) { return handle(async () => {
   const user = requireUser(request); const { id } = await context.params; const photo = privatePhoto(id); if (!photo || (!canModerate(user.role) && photo.user_id !== user.id)) throw new ApiFailure(404, "Фотография не найдена."); if (!/^[a-f0-9-]{36}\.jpg$/.test(photo.file_name)) throw new ApiFailure(404, "Фотография не найдена.");
   let data: Buffer; try { data = readFileSync(path.join(uploadsDirectory(), photo.file_name)); } catch { throw new ApiFailure(404, "Фотография не найдена."); }
@@ -107,7 +164,8 @@ export function favoritesPut(request: Request) { return handle(async () => {
 export function adminApplicationsGet(request: Request) { return handle(() => { requireModerator(request); const query = new URL(request.url).searchParams; let applications = listApplications(); const status = query.get("status"); const type = query.get("type"); const search = (query.get("q") || "").trim().toLowerCase(); if (status) applications = applications.filter(item => item.status === status); if (type) applications = applications.filter(item => item.type === type); if (search) applications = applications.filter(item => `${item.name} ${item.email} ${item.reference} ${item.title}`.toLowerCase().includes(search)); return json({ applications }); }); }
 export function adminApplicationPatch(request: Request, context: IdContext) { return handle(async () => {
   const admin = requireModerator(request); mutation(request, admin); const { id } = await context.params; const body = await readJson(request); const status = body.status as ApplicationStatus; const note = typeof body.note === "string" ? body.note.trim() : "";
-  if (!APPLICATION_STATUSES.includes(status) || !["reviewing", "accepted", "rejected", "waiting"].includes(status)) throw new ApiFailure(422, "Выберите допустимый статус.", { status: "На рассмотрении, принята, отклонена или лист ожидания." }); if (note.length > 2000) throw new ApiFailure(422, "Примечание — не более 2000 символов.", { note: "Сократите примечание." }); return json({ application: reviewApplication(admin, id, status, note) });
+  if (typeof body.expectedUpdatedAt !== "string" || !body.expectedUpdatedAt) throw new ApiFailure(409, "Обновите анкету перед рассмотрением.");
+  if (!APPLICATION_STATUSES.includes(status) || !["reviewing", "accepted", "rejected", "waiting"].includes(status)) throw new ApiFailure(422, "Выберите допустимый статус.", { status: "На рассмотрении, принята, отклонена или лист ожидания." }); if (note.length > 2000) throw new ApiFailure(422, "Примечание — не более 2000 символов.", { note: "Сократите примечание." }); return json({ application: reviewApplication(admin, id, status, note, body.expectedUpdatedAt) });
 }); }
 export function adminUsersGet(request: Request) { return handle(() => { requireAdmin(request); const users = database().prepare("SELECT * FROM users ORDER BY created_at DESC").all() as unknown as Parameters<typeof publicUser>[0][]; return json({ users: users.map(publicUser) }); }); }
 export function adminUserPatch(request: Request, context: IdContext) { return handle(async () => {

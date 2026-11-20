@@ -48,8 +48,8 @@ function AdminWorkspace({ user }: { user: User }) {
     if (!review || busy) return;
     setReviewError('');
     setBusy(true); setError(''); setMessage('');
-    try { const data = await jsonRequest<{ application: Application }>(`/api/admin/applications/${review.id}`, 'PATCH', { status: decision, note }); setApplications(old => old.map(item => item.id === data.application.id ? data.application : item)); if (detail?.id === data.application.id) setDetail(data.application); setReview(null); setMessage(`Решение по ${data.application.reference} сохранено.`); }
-    catch (problem) { setReviewError(problem instanceof Error ? problem.message : 'Не удалось сохранить решение.'); if (problem instanceof ApiError && [401, 403].includes(problem.status)) await refresh(); }
+    try { const data = await jsonRequest<{ application: Application }>(`/api/admin/applications/${review.id}`, 'PATCH', { status: decision, note, expectedUpdatedAt: review.updatedAt }); setApplications(old => old.map(item => item.id === data.application.id ? data.application : item)); if (detail?.id === data.application.id) setDetail(data.application); setReview(null); setMessage(`Решение по ${data.application.reference} сохранено.`); }
+    catch (problem) { if (problem instanceof ApiError && problem.status === 409) { setReview(null); setDetail(null); await reload(); setError('Заявка изменилась. Откройте обновлённую анкету перед решением.'); } else { setReviewError(problem instanceof Error ? problem.message : 'Не удалось сохранить решение.'); if (problem instanceof ApiError && [401, 403].includes(problem.status)) await refresh(); } }
     finally { setBusy(false); }
   }
   async function saveRole() {

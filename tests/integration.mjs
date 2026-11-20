@@ -93,11 +93,22 @@ function cleanupTemporaryDirectory() {
   rmSync(candidate, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
 }
 
-async function request(label, route, { method = 'GET', body, actor, origin = base, expected = 200 } = {}) {
+async function request(label, route, { method = 'GET', body, actor, origin = base, expected = 200, reviewVersion = true } = {}) {
   checkInterrupted();
   const headers = { Accept: 'application/json' };
   if (origin) headers.Origin = origin;
   if (actor?.cookie) headers.Cookie = actor.cookie;
+  const reviewTarget = /^\/api\/admin\/applications\/([^/?]+)\/?$/.exec(route);
+  if (reviewVersion && method === 'PATCH' && reviewTarget && body && typeof body === 'object' && !(body instanceof FormData) && !Object.hasOwn(body, 'expectedUpdatedAt')) {
+    // Ordinary review tests make a decision after opening the latest queue.
+    // Explicit stale/missing-version tests bypass this preparation. A denied
+    // actor still reaches PATCH so its own authorization response is asserted.
+    const queue = await fetch(`${base}/api/admin/applications/`, { headers, signal: AbortSignal.any([interruption.signal, AbortSignal.timeout(45_000)]) });
+    if (queue.ok) {
+      const application = (await queue.json()).applications?.find(item => item.id === reviewTarget[1]);
+      if (application) body = { ...body, expectedUpdatedAt: application.updatedAt };
+    }
+  }
   if (body !== undefined && !(body instanceof FormData)) { headers['Content-Type'] = 'application/json'; body = JSON.stringify(body); }
   const target = new URL(route, base);
   if (!target.pathname.endsWith('/')) target.pathname += '/';
@@ -142,7 +153,7 @@ async function loadEditorialData() {
   for (const name of ['events', 'courses', 'models']) {
     const source = readFileSync(path.join(root, 'src', 'data', `${name}.ts`), 'utf8');
     const emitted = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText
-      .replace(/from\s+["'](?:\.\/events|@\/data\/events)["']/g, 'from "./events.mjs"');
+      .replace(/from\s+["'](?:\.\/events(?:\.ts)?|@\/data\/events)["']/g, 'from "./events.mjs"');
     writeFileSync(path.join(temporaryDirectory, `${name}.mjs`), emitted);
   }
   const eventsModule = await import(pathToFileURL(path.join(temporaryDirectory, 'events.mjs')).href);

@@ -1,4 +1,4 @@
-import { getToday } from "./events";
+import { getToday } from "./events.ts";
 
 export interface Course {
   id: string;

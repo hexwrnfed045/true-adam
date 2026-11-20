@@ -49,10 +49,18 @@ function migrate(db: DatabaseSync) {
           ALTER TABLE users_roles_v4 RENAME TO users;
         `);
       }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS application_templates (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          type TEXT NOT NULL CHECK(type IN ('model','viewer','course','collaboration')),
+          application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+          PRIMARY KEY(user_id,type)
+        );
+      `);
       if (db.prepare("PRAGMA foreign_key_check").all().length) {
         throw new Error("Database migration would leave invalid references; changes were rolled back.");
       }
-      db.exec("PRAGMA user_version=4; COMMIT");
+      db.exec("PRAGMA user_version=5; COMMIT");
     } catch (error) {
       db.exec("ROLLBACK");
       throw error;
