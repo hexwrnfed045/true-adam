@@ -11,6 +11,7 @@ import type { Application, ApplicationType, Photo, User } from '@/types/api';
 import { api, ApiError, jsonRequest } from '@/lib/client-api';
 import { useSession } from './session-provider';
 import { applicationDefaults } from '@/lib/application-ui';
+import { getApplicationDraft, saveApplicationDraft } from '@/lib/application-drafts';
 import { Arrow } from './site-shell';
 import './forms.css';
 import UnsavedChanges from './unsaved-changes';
@@ -31,21 +32,28 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const initialEvent = events.find(item => item.id === query.get('event'));
   const initialCourse = courses.find(item => item.id === query.get('course'));
   const initialModel = models.find(item => item.id === query.get('model'));
-  const viewer = query.get('role') === 'viewer';
-  const [selection, setSelection] = useState(initialCourse ? `course:${initialCourse.id}` : initialEvent ? `event:${initialEvent.id}` : 'general');
-  const [modelId, setModelId] = useState(initialModel?.id || 'any');
+  const viewer = !contact && query.get('role') === 'viewer';
+  const fixedTarget = !contact && Boolean(initialEvent || initialCourse);
+  const initialSelection = initialCourse ? `course:${initialCourse.id}` : initialEvent ? `event:${initialEvent.id}` : 'general';
+  const draftKey = contact ? `contact:${initialModel?.id ?? 'any'}` : `casting:${viewer ? 'viewer' : 'participant'}:${initialSelection}`;
+  const [draft] = useState(() => getApplicationDraft(userId, draftKey));
+  const [selection, setSelection] = useState(draft?.selection ?? initialSelection);
+  const [modelId, setModelId] = useState(draft?.modelId ?? initialModel?.id ?? 'any');
   const [previousApplications, setPreviousApplications] = useState<Application[]>([]);
   const [templates, setTemplates] = useState<Partial<Record<ApplicationType, Application | null>>>({});
   const [templateLoaded, setTemplateLoaded] = useState<Partial<Record<ApplicationType, boolean>>>({});
-  const [savedSelections, setSavedSelections] = useState<Partial<Record<ApplicationType, Photo[]>>>({});
+  const [savedSelections, setSavedSelections] = useState<Partial<Record<ApplicationType, Photo[]>>>(draft?.savedSelections ?? {});
   const [templateErrors, setTemplateErrors] = useState<Partial<Record<ApplicationType, string>>>({});
-  const [personalValues, setPersonalValues] = useState<Record<string, string>>({});
+  const [personalValues, setPersonalValues] = useState<Record<string, string>>(draft?.personalValues ?? {});
   const [autofillError, setAutofillError] = useState('');
   const [autofillLoaded, setAutofillLoaded] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
+  const [photos, setPhotos] = useState<File[]>(draft?.photos ?? []);
+  const [projectDate, setProjectDate] = useState(draft?.projectDate ?? '');
+  const [projectType, setProjectType] = useState(draft?.projectType ?? 'Editorial');
+  const [restoredDraft, setRestoredDraft] = useState(Boolean(draft));
   const [busy, setBusy] = useState(false);
   const [readingPhotos, setReadingPhotos] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(Boolean(draft));
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [receipt, setReceipt] = useState<Application | null>(null);
@@ -53,7 +61,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   const [reauthBusy, setReauthBusy] = useState(false);
   const [reauthError, setReauthError] = useState('');
   const sending = useRef(false);
-  const newPhotoCount = useRef(0);
+  const newPhotoCount = useRef(draft?.photos.length ?? 0);
   const idempotencyKey = useRef<string | null>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const today = getToday();
@@ -92,7 +100,10 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       if (controller.signal.aborted) return;
       const template = data.application?.userId === userId && data.application.type === type ? data.application : null;
       setTemplates(current => ({ ...current, [type]: template }));
-      setSavedSelections(current => ({ ...current, [type]: type === 'model' ? template?.photos.slice(0, Math.max(0, 3 - newPhotoCount.current)) ?? [] : [] }));
+      setSavedSelections(current => current[type] !== undefined ? current : {
+        ...current,
+        [type]: type === 'model' ? template?.photos.slice(0, Math.max(0, 3 - newPhotoCount.current)) ?? [] : [],
+      });
       setTemplateErrors(current => ({ ...current, [type]: '' }));
     }).catch(() => {
       if (!controller.signal.aborted) setTemplateErrors(current => ({ ...current, [type]: 'Не удалось загрузить сохранённую анкету. Можно заполнить форму и добавить фотографии вручную.' }));
@@ -120,6 +131,12 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       },
     };
   }
+  useEffect(() => {
+    if (dirty && !receipt) {
+      saveApplicationDraft(userId, draftKey, { selection, modelId, personalValues, savedSelections, photos, projectDate, projectType });
+    }
+  }, [dirty, receipt, userId, draftKey, selection, modelId, personalValues, savedSelections, photos, projectDate, projectType]);
+
   useEffect(() => {
     if (!dirty || receipt) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
@@ -192,6 +209,8 @@ function ApplicationForm({ contact }: { contact: boolean }) {
     }
     try {
       const result = await api<{ application: Application }>('/api/applications', { method: 'POST', body: data });
+      saveApplicationDraft(userId, draftKey, null);
+      setRestoredDraft(false);
       setReceipt(result.application);
       setPreviousApplications(current => [result.application, ...current.filter(item => item.id !== result.application.id)]);
       setTemplates(current => ({ ...current, [type]: result.application }));
@@ -224,40 +243,97 @@ function ApplicationForm({ contact }: { contact: boolean }) {
   }
 
   if (loading) return <FormSkeleton />;
-  if (!user) return <div className="sign-in-gate"><p className="eyebrow">ВАШИ ЗАЯВКИ — В ЛИЧНОМ КАБИНЕТЕ</p><h2>Сначала познакомимся.</h2><p>Войдите или создайте аккаунт, чтобы отправить анкету, сохранить фотографии и следить за рассмотрением заявки.</p>{sessionError && <Alert severity="error" action={<Button onClick={() => void refresh()}>Повторить</Button>}>{sessionError}</Alert>}<div className="form-action-row"><Link href={`/login?next=${encodeURIComponent(next)}`} className="button button-dark">Войти <Arrow /></Link><Link href={`/register?next=${encodeURIComponent(next)}`} className="text-link">Создать аккаунт <Arrow /></Link></div></div>;
-  if (receipt) return <div className="form-success" role="status"><span className="receipt-check" aria-hidden="true">✓</span><p className="eyebrow">ЗАЯВКА {receipt.reference}</p><h2>{receipt.status === 'waiting' ? 'Вы в листе ожидания.' : 'Анкета отправлена.'}</h2><p>Данные{receipt.photos.length ? ' и фотографии' : ''} сохранены для следующих заявок этого типа. {receipt.status === 'waiting' ? 'Свободные места закончились. Команда увидит вашу запись и сможет подтвердить участие.' : 'Команда увидит заявку в своём кабинете. Статус рассмотрения можно проверить в личном кабинете.'}</p><div className="receipt-summary"><strong>{receipt.title}</strong><span>{receipt.name} · {receipt.email}</span></div><div className="form-action-row"><Link className="button button-dark" href="/account">Мои заявки <Arrow /></Link><Button onClick={() => setReceipt(null)}>Заполнить другую анкету</Button></div></div>;
+  if (!user) return (
+    <div className="sign-in-gate">
+      <h2>{viewer ? 'Войдите, чтобы записаться' : 'Войдите, чтобы отправить заявку'}</h2>
+      <p>{viewer ? 'Войдите или создайте аккаунт, чтобы записаться на выбранный показ.' : 'Войдите или создайте аккаунт. Статус заявки будет доступен в личном кабинете.'}</p>
+      {sessionError && <Alert severity="error" action={<Button onClick={() => void refresh()}>Повторить</Button>}>{sessionError}</Alert>}
+      <div className="form-action-row">
+        <Link href={`/login?next=${encodeURIComponent(next)}`} className="button button-dark">Войти</Link>
+        <Link href={`/register?next=${encodeURIComponent(next)}`} className="text-link">Создать аккаунт</Link>
+      </div>
+    </div>
+  );
+  if (receipt) {
+    const waiting = receipt.status === 'waiting';
+    return (
+      <div className="form-success" role="status">
+        <span className="receipt-check" aria-hidden="true">✓</span>
+        <p className="eyebrow">{viewer ? 'ЗАПИСЬ' : 'ЗАЯВКА'} {receipt.reference}</p>
+        <h2>{waiting ? 'Вы в листе ожидания.' : viewer ? 'Запись отправлена.' : 'Анкета отправлена.'}</h2>
+        <p>{waiting
+          ? 'Места закончились. Если место освободится, команда сможет подтвердить запись.'
+          : viewer ? 'Статус записи можно отслеживать в личном кабинете.'
+            : 'Анкета и приложенные данные сохранены. Статус рассмотрения появится в личном кабинете.'}</p>
+        <div className="receipt-summary"><strong>{receipt.title}</strong><span>{receipt.name} · {receipt.email}</span></div>
+        <div className="form-action-row">
+          <Link className="button button-dark" href="/account">Мои заявки</Link>
+          {fixedTarget
+            ? <Link className="text-link" href={initialCourse ? '/academy' : '/events'}>{initialCourse ? 'Другие программы' : 'Другие события'}</Link>
+            : <Button onClick={() => setReceipt(null)}>Заполнить другую анкету</Button>}
+        </div>
+      </div>
+    );
+  }
 
   return <form className="application-form" onSubmit={submit} onChange={() => setDirty(true)}>
+    {restoredDraft && <Alert severity="info">Черновик восстановлен. Проверьте данные и подтвердите согласие перед отправкой.</Alert>}
     <p className="form-note" role="status">{autofillLoaded && currentTemplateLoaded
       ? templates[type] ? `Данные${type === 'model' && savedPhotos.length ? ' и фотографии' : ''} подставлены из сохранённой анкеты ${templates[type]?.reference}. Проверьте их перед отправкой.` : 'Данные подставляются из профиля и прошлых анкет. Проверьте их перед отправкой.'
       : 'Загружаем сохранённую анкету. Уже введённые значения останутся в форме.'}</p>
     {autofillError && <Alert severity="warning">{autofillError}</Alert>}{templateError && <Alert severity="warning" action={<Button onClick={() => setTemplateLoaded(current => ({ ...current, [type]: false }))}>Повторить</Button>}>{templateError}</Alert>}
-    <div className="form-note">После отправки вы получите номер заявки. Контакты и фотографии доступны вам и уполномоченной команде агентства.</div>
+    <div className="form-note">{viewer ? 'После отправки вы получите номер записи. Статус можно проверить в личном кабинете.' : 'После отправки вы получите номер заявки. Её данные доступны вам и уполномоченной команде агентства.'}</div>
     <div ref={errorRef} tabIndex={-1} className="form-error-anchor">{error && <Alert severity="error">{error}</Alert>}</div>
     {invalidReference && <Alert severity="warning" action={<Button component={Link} href={contact ? "/contact" : "/casting"}>Сбросить ссылку</Button>}>Ссылка на проект или модель некорректна. Откройте актуальную карточку из каталога.</Alert>}
     <fieldset className="application-fields" disabled={busy}>
-      <legend className="visually-hidden">Анкета {contact ? 'сотрудничества' : 'участника'}</legend>
-      <p className="form-section-label">01 / {contact ? 'ВАШ ПРОЕКТ' : 'НАПРАВЛЕНИЕ'}</p>
-      {contact ? <TextField select label="Выбранная модель" value={modelId} onChange={event => setModelId(event.target.value)}><MenuItem value="any">Помогите подобрать модель</MenuItem>{models.map(model => <MenuItem key={model.id} value={model.id}>{model.name} · {model.city}</MenuItem>)}</TextField> : <TextField select label={viewer ? 'Запись зрителем на показ' : 'Кастинг, событие или курс'} value={selection} onChange={event => { setSelection(event.target.value); setError(''); setFieldErrors({}); }} {...field('targetId')}><MenuItem value="general" disabled={viewer}>Стать моделью · общая анкета</MenuItem>{eligibleEvents.map(item => <MenuItem key={item.id} value={`event:${item.id}`}>{item.title} · {formatEventDate(item.date)}</MenuItem>)}{activeEvent && !eligibleEvents.some(item => item.id === activeEvent.id) && <MenuItem value={`event:${activeEvent.id}`}>{activeEvent.title} · приём закрыт</MenuItem>}{!viewer && eligibleCourses.map(course => <MenuItem key={course.id} value={`course:${course.id}`}>{course.title} · обучение</MenuItem>)}{activeCourse && !eligibleCourses.some(course => course.id === activeCourse.id) && <MenuItem value={`course:${activeCourse.id}`}>{activeCourse.title} · набор завершён</MenuItem>}</TextField>}
-      {!contact && viewer && <Alert severity="info">Это запись на посещение показа. Для участия в качестве модели откройте анкету из раздела «Кастинги».</Alert>}
+      <legend className="visually-hidden">{viewer ? 'Запись зрителя' : contact ? 'Анкета сотрудничества' : 'Анкета участника'}</legend>
+      {!fixedTarget && <p className="form-section-label">{contact ? 'ВАШ ПРОЕКТ' : 'НАПРАВЛЕНИЕ'}</p>}
+      {contact ? (
+        <TextField select label="Выбранная модель" value={modelId} onChange={event => { setModelId(event.target.value); setDirty(true); }}>
+          <MenuItem value="any">Помогите подобрать модель</MenuItem>
+          {models.map(model => <MenuItem key={model.id} value={model.id}>{model.name} · {model.city}</MenuItem>)}
+        </TextField>
+      ) : !fixedTarget && (
+        <TextField select label="Кастинг, событие или курс" value={selection} onChange={event => {
+          setSelection(event.target.value);
+          setDirty(true);
+          setError('');
+          setFieldErrors({});
+        }} {...field('targetId')}>
+          <MenuItem value="general">Стать моделью · общая анкета</MenuItem>
+          {eligibleEvents.map(item => <MenuItem key={item.id} value={`event:${item.id}`}>{item.title} · {formatEventDate(item.date)}</MenuItem>)}
+          {activeEvent && !eligibleEvents.some(item => item.id === activeEvent.id) && <MenuItem value={`event:${activeEvent.id}`}>{activeEvent.title} · приём закрыт</MenuItem>}
+          {eligibleCourses.map(course => <MenuItem key={course.id} value={`course:${course.id}`}>{course.title} · обучение</MenuItem>)}
+          {activeCourse && !eligibleCourses.some(course => course.id === activeCourse.id) && <MenuItem value={`course:${activeCourse.id}`}>{activeCourse.title} · набор завершён</MenuItem>}
+        </TextField>
+      )}
       {unavailable && <Alert severity="warning">Набор на этот проект завершён или запись недоступна. Выберите другую возможность.</Alert>}
-      <div className="application-field-tools"><p className="form-section-label">02 / КОНТАКТЫ</p><Button size="small" type="button" onClick={useProfile} disabled={busy}>Заполнить из профиля</Button></div>
+      <div className="application-field-tools"><p className="form-section-label">КОНТАКТЫ</p><Button size="small" type="button" onClick={useProfile} disabled={busy}>Заполнить из профиля</Button></div>
       <div className="form-fields">
         <TextField name="name" label={contact ? 'Имя / бренд' : 'Имя и фамилия'} {...personalField("name")} autoComplete="name" required slotProps={{ htmlInput: { minLength: 2, maxLength: 100 } }} {...field('name')} />
         <TextField name="email" label="Email аккаунта" value={user.email} slotProps={{ input: { readOnly: true } }} helperText="Ответ и статус заявки будут доступны в кабинете." />
         <TextField name="city" label="Город" {...personalField("city")} autoComplete="address-level2" required slotProps={{ htmlInput: { minLength: 2, maxLength: 80 } }} {...field('city')} />
         <TextField name="phone" {...personalField("phone")} label="Телефон" type="tel" autoComplete="tel" placeholder="+7 700 123 45 67" required slotProps={{ htmlInput: { maxLength: 25 } }} {...field('phone')} />
       </div>
-      {type === 'collaboration' && <div className="form-fields"><TextField name="projectDate" type="date" label="Планируемая дата" required slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: today } }} {...field('projectDate')} /><TextField name="projectType" select label="Формат проекта" defaultValue="Editorial" {...field('projectType')}>{['Editorial', 'Показ', 'Реклама', 'Другое'].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}</TextField></div>}
+      {type === 'collaboration' && <div className="form-fields">
+        <TextField name="projectDate" type="date" label="Планируемая дата" value={projectDate} onChange={event => setProjectDate(event.target.value)} required slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: today } }} {...field('projectDate')} />
+        <TextField name="projectType" select label="Формат проекта" value={projectType} onChange={event => { setProjectType(event.target.value); setDirty(true); }} {...field('projectType')}>
+          {['Editorial', 'Показ', 'Реклама', 'Другое'].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+        </TextField>
+      </div>}
       {type === 'model' && <><p className="form-section-label">03 / ПАРАМЕТРЫ</p><div className="form-fields"><TextField name="age" {...personalField("age")} label="Возраст, лет" type="number" required slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field('age')} /><TextField name="height" {...personalField("height")} label="Рост, см" type="number" required slotProps={{ htmlInput: { min: 140, max: 220 } }} {...field('height')} /></div><div className="measurements-fields">{[['chest', 'Грудь, см'], ['waist', 'Талия, см'], ['hips', 'Бёдра, см']].map(([name, label]) => <TextField key={name} name={name} {...personalField(name)} label={label} type="number" required slotProps={{ htmlInput: { min: 40, max: 180 } }} error={!!fieldErrors.measurements} />)}</div>{fieldErrors.measurements && <p className="form-error">{fieldErrors.measurements}</p>}</>}
       {type === 'course' && <TextField name="age" label="Возраст, лет (необязательно)" type="number" {...personalField("age")} slotProps={{ htmlInput: { min: 18, max: 80 } }} {...field("age")} />}
       <TextField name="description" {...personalField("description")} label={contact ? 'О проекте, бюджете и условиях' : viewer ? 'Комментарий (необязательно)' : type === 'course' ? 'Опыт и цель обучения (необязательно)' : 'Опыт и немного о себе'} multiline minRows={4} required={contact} slotProps={{ htmlInput: { maxLength: 2000 } }} {...field('description')} />
       {type === 'model' && <><p className="form-section-label">04 / ФОТОГРАФИИ</p><div className="upload-field"><strong>Портрет, профиль или полный рост</strong><small>До 3 фотографий JPEG, PNG или WebP, до 5 МБ и 20 мегапикселей каждая. Естественный свет, без сильных фильтров.</small><Button variant="outlined" component="label" disabled={readingPhotos || totalPhotos >= 3}>{readingPhotos ? 'Проверяем фотографии…' : 'Добавить фотографии'}<input hidden type="file" multiple accept={photoTypes.join(',')} onChange={event => void addPhotos(event)} aria-label="Добавить фотографии" /></Button>{(fieldErrors.photos || fieldErrors.photoIds) && <p className="form-error">{fieldErrors.photos || fieldErrors.photoIds}</p>}</div>{totalPhotos > 0 && <ul className="photo-preview-list">{savedPhotos.map(photo => <li className="photo-preview" key={photo.id}><Image unoptimized src={photo.url} width={110} height={140} alt={`Фото из сохранённой анкеты: ${photo.name}`} /><div><strong>{photo.name}</strong><small>Из сохранённой анкеты</small></div><IconButton type="button" size="small" aria-label={`Убрать сохранённое фото ${photo.name}`} onClick={() => { setSavedSelections(current => ({ ...current, [type]: savedPhotos.filter(item => item.id !== photo.id) })); setDirty(true); }}>×</IconButton></li>)}{photos.map((file, index) => <PhotoPreview key={`${file.name}-${file.size}-${file.lastModified}-${index}`} file={file} remove={() => { setPhotos(current => { const remaining = current.filter((_, itemIndex) => itemIndex !== index); newPhotoCount.current = remaining.length; return remaining; }); setDirty(true); }} />)}</ul>}</>}
-      <FormControlLabel control={<Checkbox required name="consent" value="true" size="small" />} label={<span className="consent-label">Согласен на обработку введённых данных и фотографий для рассмотрения этой заявки. <Link href="/privacy" target="_blank" rel="noopener noreferrer">Как хранятся данные</Link></span>} />
+      <FormControlLabel control={<Checkbox required name="consent" value="true" size="small" />} label={<span className="consent-label">Согласен на обработку данных{type === 'model' ? ' и фотографий' : ''} для рассмотрения {viewer ? 'записи' : 'заявки'}. <Link href="/privacy" target="_blank" rel="noopener noreferrer">Как хранятся данные</Link></span>} />
       {fieldErrors.consent && <p className="form-error">{fieldErrors.consent}</p>}
       <Button variant="contained" type="submit" disabled={busy || readingPhotos || !currentTemplateLoaded || unavailable || invalidReference} endIcon={busy ? <CircularProgress size={18} color="inherit" /> : <Arrow />} sx={{ width: '100%', justifyContent: 'space-between' }}>{busy ? 'Отправляем анкету…' : type === 'viewer' ? 'Записаться зрителем' : type === 'course' ? 'Отправить заявку на обучение' : 'Отправить анкету'}</Button>
     </fieldset>
-    <UnsavedChanges active={dirty && !receipt} onLeave={() => setDirty(false)} />
+    <UnsavedChanges active={dirty && !receipt} onLeave={() => {
+      saveApplicationDraft(userId, draftKey, null);
+      setDirty(false);
+      setRestoredDraft(false);
+    }} />
     <Dialog open={reauth} onClose={() => !reauthBusy && setReauth(false)} fullWidth maxWidth="sm" aria-labelledby="restore-session-title"><form onSubmit={restoreSession}><DialogTitle id="restore-session-title">Войдите снова</DialogTitle><DialogContent><p className="muted">Срок входа истёк. Подтвердите пароль — заполненная анкета и выбранные фото останутся на месте.</p><div className="application-form">{reauthError && <Alert severity="error">{reauthError}</Alert>}<TextField label="Email" value={user.email} slotProps={{ input: { readOnly: true } }} /><TextField autoFocus name="sessionPassword" label="Пароль" type="password" autoComplete="current-password" required disabled={reauthBusy} slotProps={{ htmlInput: { maxLength: 128 } }} /></div></DialogContent><DialogActions><Button onClick={() => setReauth(false)} disabled={reauthBusy}>Закрыть</Button><Button type="submit" variant="contained" disabled={reauthBusy}>{reauthBusy ? 'Входим…' : 'Восстановить вход'}</Button></DialogActions></form></Dialog>
   </form>;
 }

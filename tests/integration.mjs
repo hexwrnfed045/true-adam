@@ -145,6 +145,7 @@ async function requestHTML(label, route, expected = 200) {
   }
   assert.doesNotMatch(html, /Application error: a (?:server|client)-side exception has occurred|Internal Server Error/i, `${label}: no application exception`);
   checks.push(label);
+  return html;
 }
 
 async function loadEditorialData() {
@@ -330,6 +331,20 @@ async function runSuite() {
   for (const route of ['/', '/models', '/events', '/shoots', '/casting', '/academy', '/backstage', '/contact', '/login', '/register', '/account', '/admin']) await requestHTML(`HTML route ${route}`, route);
   for (const model of models) await requestHTML(`HTML model ${model.id}`, `/models/${model.id}`);
   for (const event of events) await requestHTML(`HTML event ${event.id}`, `/events/${event.id}`);
+  const cancelled = events.find(event => event.status === 'Отменено');
+  if (cancelled) {
+    const html = await requestHTML('closed viewer target explains closure before sign-in', `/casting?event=${cancelled.id}&role=viewer`);
+    assert.match(html, /Событие отменено/);
+    assert.doesNotMatch(html, /aria-label="Загрузка формы"/);
+  }
+  const openShow = events.find(event => event.type === 'Показ' && event.openToPublic && event.seats > 0
+    && event.status === 'Открыт набор' && event.deadline >= today && event.date >= today);
+  if (openShow) {
+    const html = await requestHTML('viewer registration shows the selected show before sign-in', `/casting?event=${openShow.id}&role=viewer`);
+    assert.ok(html.includes(`Запись зрителем на ${openShow.title}`));
+    assert.ok(html.includes(openShow.venue));
+    assert.doesNotMatch(html, /Для первого знакомства достаточно/);
+  }
 
   await request('health', '/api/health');
   assert.equal((await request('guest account', '/api/auth/me')).data.user, null);

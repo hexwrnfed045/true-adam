@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, jsonRequest } from '@/lib/client-api';
+import { setApplicationDraftOwner } from '@/lib/application-drafts';
 import type { User } from '@/types/api';
 
 type Session = {
@@ -39,6 +40,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api<{ user: User | null }>('/api/auth/me');
       if (version === generation.current) {
+        setApplicationDraftOwner(data.user?.id ?? null);
         currentUser.current = data.user;
         setUser(data.user);
         setError('');
@@ -63,6 +65,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     api<{ user: User | null }>('/api/auth/me', { signal: controller.signal })
       .then(data => {
         if (version === generation.current) {
+          setApplicationDraftOwner(data.user?.id ?? null);
           currentUser.current = data.user;
           setUser(data.user);
           setError('');
@@ -105,6 +108,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (!controller.signal.aborted && version === generation.current && !refreshing.current && data.user
           && JSON.stringify(data.user) !== JSON.stringify(currentUser.current)) {
           generation.current++;
+          setApplicationDraftOwner(data.user.id);
           currentUser.current = data.user;
           setUser(data.user);
           setError('');
@@ -134,6 +138,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const acceptUser = useCallback((next: User | null) => {
     generation.current++;
+    setApplicationDraftOwner(next?.id ?? null);
     currentUser.current = next;
     refreshing.current = false;
     resolved.current = true;

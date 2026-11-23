@@ -309,6 +309,10 @@
 .event-intent-closed h2{font-size:28px;font-weight:500;line-height:1.1;letter-spacing:-.035em;margin:0 0 12px}
 .event-intent-closed p{font-size:16px;line-height:1.7;margin:0}
 .event-intent-closed>.button{flex-shrink:0}
+.academy-enrollment-status{display:flex;align-items:center;justify-content:space-between;gap:40px;border-top:1px solid #111;border-bottom:1px solid #bbb;padding:30px 0;margin:0 0 40px}
+.academy-enrollment-status h2{font-size:clamp(26px,3vw,40px);font-weight:500;line-height:1.1;letter-spacing:-.045em;margin:14px 0}
+.academy-enrollment-status p:last-child{max-width:720px;font-size:16px;line-height:1.8;margin:0}
+.academy-enrollment-status>.button{flex-shrink:0}
 @media(max-width:1199px){.event-intent{align-items:flex-start;flex-direction:column;gap:18px}.event-intent .button{width:100%;max-width:none}}
 @media(max-width:767px){
   .events-page{padding-top:24px}
@@ -339,6 +343,9 @@
   .event-intent-closed>.button{margin-top:20px;width:100%}
   .event-intent-closed h2{font-size:26px}
   .event-intent-closed p{font-size:15px}
+  .academy-enrollment-status{display:block;padding:24px 0;margin-bottom:28px}
+  .academy-enrollment-status p:last-child{font-size:15px;line-height:1.7}
+  .academy-enrollment-status>.button{margin-top:24px}
 }
 @media(max-width:380px){.events-filter-panel .events-advanced-grid{grid-template-columns:1fr}.events-page .event-heading-row .page-heading{font-size:40px}.events-view-toolbar .MuiToggleButton-root{padding:9px 9px;font-size:13px}}
 
@@ -354,6 +361,7 @@
 .academy-courses>.section-head h2,
 .academy-course h2,
 .academy-info-note h2,
+.academy-enrollment-status h2,
 .shoot-project-info h2,
 .event-intent-closed h2{
   font-family:var(--font-display,var(--font-runway,Georgia,"Times New Roman",serif));
@@ -388,6 +396,10 @@
 .academy-course h2{font-size:clamp(38px,4.6vw,64px);line-height:.98}
 .academy-price{font-size:23px;font-weight:400;letter-spacing:0}
 .academy-info-note h2{font-size:clamp(38px,4.7vw,64px);line-height:1;margin:0 0 24px}
+.academy-enrollment-status{border-top-color:#bbb;padding:24px 0;margin-bottom:30px}
+.academy-enrollment-status .eyebrow{display:none}
+.academy-enrollment-status h2{font-size:36px;margin:0 0 12px}
+.academy-enrollment-status p:last-child{font-size:14px;line-height:1.7;max-width:670px}
 .shoot-project{border-top-color:#bbb;padding-top:28px}
 .shoot-project-info h2{font-size:clamp(40px,4.9vw,70px);line-height:.97}
 .shoot-project-info>.d-flex>.eyebrow{font-size:14px;letter-spacing:0;text-transform:none}
@@ -414,6 +426,9 @@
   .event-detail-copy h2{font-size:38px}
   .events-bottom-cta h2{font-size:38px;line-height:1}
   .academy-lead-photo{aspect-ratio:1.24;margin-bottom:40px}
+  .academy-enrollment-status{padding:20px 0;margin-bottom:24px}
+  .academy-enrollment-status h2{font-size:32px}
+  .academy-enrollment-status>.button{margin-top:18px}
   .academy-courses>.section-head h2{font-size:42px}
   .academy-course h2{font-size:42px;line-height:1}
   .academy-course-top{margin-bottom:20px}
