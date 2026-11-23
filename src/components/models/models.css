@@ -1212,8 +1212,8 @@
     background: #fff !important;
     color: #000 !important;
   }
-  body:has(.comp-card-paper) .site-header,
-  body:has(.comp-card-paper) .site-footer,
+  body:has(.comp-card-paper) .runway-shell-header,
+  body:has(.comp-card-paper) .runway-shell-footer,
   body:has(.comp-card-paper) .skip-link,
   body:has(.comp-card-paper) .MuiSnackbar-root,
   body:has(.comp-card-paper) .MuiDialog-root {

@@ -1,0 +1,60 @@
+/* Search uses the same veil as navigation, with a shorter panel entrance. */
+.site-search-dialog .MuiBackdrop-root {
+  background:rgba(0,0,0,.58);
+  backdrop-filter:blur(5px);
+  -webkit-backdrop-filter:blur(5px);
+}
+.site-search-dialog .MuiDialog-paper {
+  border-radius:0;
+  background:#fff;
+  color:#111;
+  box-shadow:0 24px 90px #00000026;
+  overscroll-behavior:contain;
+}
+.site-search-dialog[data-search-motion="entering"] .MuiDialog-paper {
+  animation:runway-search-enter 400ms cubic-bezier(.22,1,.36,1) both;
+}
+.site-search-dialog[data-search-motion="exiting"] .MuiDialog-paper {
+  animation:runway-search-exit 220ms ease both;
+}
+.site-search-dialog .MuiDialogTitle-root {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#fff;
+  padding-top:24px;
+  padding-bottom:20px;
+}
+.site-search-dialog .MuiDialogContent-root {
+  padding-bottom:28px;
+}
+.site-search-dialog .MuiDialogTitle-root>.MuiIconButton-root {
+  min-width:44px;
+  min-height:44px;
+  color:#111;
+}
+.site-search-dialog a:focus-visible,.site-search-dialog button:focus-visible {
+  outline:2px solid #111;
+  outline-offset:4px;
+}
+.site-search-trigger {
+  transition:opacity 180ms ease;
+}
+.site-search-trigger:hover { opacity:.65; }
+@keyframes runway-search-enter {
+  from { transform:translateY(20px) scale(.985); }
+  to { transform:translateY(0) scale(1); }
+}
+@keyframes runway-search-exit {
+  from { transform:translateY(0) scale(1); }
+  to { transform:translateY(8px) scale(.995); }
+}
+@media(max-width:600px) {
+  .site-search-dialog .MuiDialogTitle-root { padding:18px 20px; }
+  .site-search-dialog .MuiDialogContent-root { padding-inline:20px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .site-search-dialog .MuiDialog-paper { animation:none!important; transform:none!important; }
+  .site-search-dialog .MuiBackdrop-root { backdrop-filter:none; -webkit-backdrop-filter:none; }
+  .site-search-trigger { transition:none; }
+}

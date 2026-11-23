@@ -11,7 +11,7 @@ import { Header, Footer } from "@/components/site-shell";
 const editorialFont = localFont({ src: [{path:"../../public/fonts/CormorantGaramond-Variable.ttf",weight:"300 700",style:"normal"},{path:"../../public/fonts/CormorantGaramond-Italic-Variable.ttf",weight:"300 700",style:"italic"}], variable:"--font-runway", display:"swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Runway Models — твой выход", template: "%s | Runway Models" },
+  title: { default: "Runway Models — модели, показы и кастинги", template: "%s | Runway Models" },
   description:
     "Runway Models — проект о модных показах, моделях, съёмках, кастингах и обучении.",
 };

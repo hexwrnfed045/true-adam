@@ -1,20 +1,19 @@
-import Link from "next/link";
-import Image from "next/image";
-import { models } from "@/data/models";
-import { events, formatEventDate, isEventAvailable } from "@/data/events";
-import HomeHero from "@/components/home-hero";
 import { connection } from "next/server";
+import HomeHero from "@/components/home-hero";
+import ModelCatalog from "@/components/models/ModelCatalog";
 
 export default async function Home() {
   await connection();
-  const upcoming = events.filter(event => isEventAvailable(event)).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
-  return <main id="main-content" className="editorial-home">
-    <HomeHero />
-    <section className="chapter-intro page-shell" id="discover"><p className="editorial-kicker">OUR POINT OF VIEW</p><div><h2>Не просто лицо.<br /><em>Целая история.</em></h2><div className="chapter-intro-copy"><p>Runway — пространство, где встречаются новые лица и новые возможности. Подиум, съёмка, первая проба. У каждого свой маршрут. У нас есть место для твоего.</p><Link className="editorial-link" href="/casting">Начать свою историю</Link></div></div></section>
-    <section className="chapter-roster page-shell"><div className="editorial-section-title"><div><p className="editorial-kicker">THE NEW GENERATION</p><h2>Новые лица</h2></div><Link className="editorial-link" href="/models">Весь каталог</Link></div><div className="chapter-roster-grid">{models.slice(0,4).map(model=><article key={model.id}><Link href={"/models/"+model.id} className="chapter-roster-photo"><Image src={model.image} alt={"Портфолио: "+model.name} fill sizes="(max-width:650px) 45vw, 22vw" /><span>{model.specialty}</span></Link><Link href={"/models/"+model.id} className="chapter-roster-name">{model.name}</Link><p>{model.city} <span>{model.height} см</span></p></article>)}</div><p className="editorial-note">Редакционный каталог: демонстрационные профили и портфолио.</p></section>
-    <section className="chapter-manifesto"><div className="chapter-manifesto-image"><Image src="/images/hero-runway.jpg" alt="Подиум и движение — редакционная fashion-фотография" fill sizes="100vw" /></div><div className="chapter-manifesto-text"><p className="editorial-kicker">MORE THAN A MOMENT</p><h2>MADE TO<br /><em>BE SEEN.</em></h2><Link className="editorial-link" href="/events">Встречаемся на подиуме</Link></div></section>
-    <section className="chapter-opportunities page-shell"><div className="editorial-section-title"><div><p className="editorial-kicker">WHAT’S NEXT</p><h2>Время действовать</h2></div><Link className="editorial-link" href="/events">Календарь событий</Link></div><div className="chapter-opportunity-list">{upcoming.length ? upcoming.map(event=><Link key={event.id} href={"/events/"+event.id}><span className="chapter-opportunity-date">{formatEventDate(event.date)}</span><span className="chapter-opportunity-name">{event.title}<small>{event.type} / {event.city}</small></span><span className="chapter-opportunity-action">Подробнее</span></Link>) : <div className="chapter-no-events"><p>Новый сезон уже на подходе.</p><Link href="/casting" className="editorial-link">Оставить общую анкету</Link></div>}</div><p className="editorial-note">Концептуальная программа. Актуальные условия и сроки — в карточках событий.</p></section>
-    <section className="chapter-stories page-shell"><div className="editorial-section-title"><div><p className="editorial-kicker">THE OTHER SIDE</p><h2>Внутри индустрии</h2></div></div><div className="chapter-story-grid"><Link href="/academy"><div className="chapter-story-image"><Image src="/images/academy-01.jpg" alt="Практика позирования в модельной академии" fill sizes="(max-width:650px) 92vw, 44vw" /></div><span className="editorial-kicker">RUNWAY ACADEMY</span><h3>Уверенность —<br /><em>тоже навык.</em></h3><p>Дефиле, пластика, работа с камерой. Первый шаг к собственному стилю.</p><span className="editorial-link">Открыть академию</span></Link><Link href="/backstage"><div className="chapter-story-image"><Image src="/images/backstage-01.jpg" alt="Подготовка образов за кулисами показа" fill sizes="(max-width:650px) 92vw, 44vw" /></div><span className="editorial-kicker">BEHIND THE SCENES</span><h3>Между кадрами.<br /><em>Настоящее.</em></h3><p>Люди, подготовка и моменты, из которых складывается большой показ.</p><span className="editorial-link">Смотреть backstage</span></Link></div></section>
-    <section className="chapter-collab page-shell"><p className="editorial-kicker">FOR BRANDS & CREATORS</p><h2>Есть идея?<br /><em>Давайте создадим.</em></h2><Link className="button button-dark" href="/contact">Обсудить проект</Link></section>
-  </main>;
+  return (
+    <main id="main-content" className="runway-home">
+      <HomeHero />
+      <section id="talent" className="page-shell runway-talent" aria-labelledby="talent-title" tabIndex={-1}>
+        <div className="runway-talent-heading">
+          <h2 id="talent-title">Модели</h2>
+          <p>Демонстрационные портфолио</p>
+        </div>
+        <ModelCatalog mode="home" />
+      </section>
+    </main>
+  );
 }

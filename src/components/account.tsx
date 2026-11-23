@@ -79,7 +79,7 @@ const profileMeasurements = [
   { name: 'hips', label: 'Обхват бёдер', min: 40, max: 180 },
 ] as const;
 
-function ProfileEditor({ user }: { user: User }) {
+function ProfileEditor({ user, active }: { user: User; active: boolean }) {
   const { acceptUser } = useSession();
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(user.email);
@@ -168,7 +168,7 @@ function ProfileEditor({ user }: { user: User }) {
               <TextField name="city" label="Город" defaultValue={user.city} autoComplete="address-level2" required slotProps={{ htmlInput: { minLength: 2, maxLength: 80 } }} {...profileField('city')} />
               <TextField name="email" label="Email" type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required slotProps={{ htmlInput: { maxLength: 254 } }} {...profileField('email')} />
               <TextField name="phone" label="Телефон" type="tel" defaultValue={user.phone ?? ''} autoComplete="tel" slotProps={{ htmlInput: { maxLength: 30 } }} {...profileField('phone')} />
-              {emailChanged && (
+              {active && emailChanged && (
                 <div className="full">
                   <PasswordField name="currentPassword" label="Текущий пароль для смены email" autoComplete="current-password" {...profileField('currentPassword')} />
                 </div>
@@ -222,12 +222,12 @@ function ProfileEditor({ user }: { user: User }) {
             <Button variant="outlined" sx={{ mt: 2 }} onClick={startEditing} disabled={busy}>Редактировать</Button>
           </div>
           <h2 className="profile-password-heading">Изменить пароль</h2>
-          <form key={passwordVersion} className="application-form" onSubmit={password}>
+          {active && <form key={passwordVersion} className="application-form" onSubmit={password}>
             <PasswordField name="currentPassword" label="Текущий пароль" autoComplete="current-password" {...profileField('currentPassword')} />
             <PasswordField name="newPassword" label="Новый пароль" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} error={!!fields.newPassword} helperText={fields.newPassword || `Минимум ${MIN_PASSWORD_LENGTH} символов.`} />
             <PasswordField name="confirmation" label="Повторите новый пароль" autoComplete="new-password" {...profileField('confirmation')} />
             <Button type="submit" variant="contained" disabled={busy}>{busy ? 'Сохраняем…' : 'Изменить пароль'}</Button>
-          </form>
+          </form>}
         </>
       )}
     </div>
@@ -342,10 +342,13 @@ function MemberAccount({ user }: { user: User }) {
   async function signOut() { setBusy(true); setError(''); try { await logout(); router.replace('/login'); } catch (problem) { setError(problem instanceof Error ? problem.message : 'Не удалось выйти.'); } finally { setBusy(false); } }
   const filtered = filterApplications(records, filters);
   return <><div className="page-heading"><p className="eyebrow">MY RUNWAY / {workspace.heading}</p><h1>Привет, {user.name.split(' ')[0]}.</h1><p>{workspace.description}</p></div><div className="account-toolbar"><span className="tag">{ROLE_LABELS[user.role]}</span><div className="form-action-row">{canModerate(user.role) && <Link className="text-link" href="/admin">Управление заявками <Arrow /></Link>}<Button onClick={() => void signOut()} disabled={busy}>Выйти из аккаунта</Button></div></div>{error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}{message && <Alert severity="success" sx={{ mb: 3 }} onClose={() => setMessage('')}>{message}</Alert>}<RoleActions user={user} onProfile={() => setTab(2)} /><Tabs value={tab} onChange={(_, value: number) => setTab(value)} variant="scrollable" allowScrollButtonsMobile aria-label="Разделы кабинета" sx={{ borderBottom: '1px solid #d8d8d0', mb: 4 }}><Tab id="account-tab-0" aria-controls="account-panel-0" label={`Мои заявки (${records.length})`} /><Tab id="account-tab-1" aria-controls="account-panel-1" label={`Избранное (${favorites.length})`} /><Tab id="account-tab-2" aria-controls="account-panel-2" label="Профиль" /></Tabs>
-  <section role="tabpanel" id={`account-panel-${tab}`} aria-labelledby={`account-tab-${tab}`}>
+  {tab !== 2 && <section role="tabpanel" id={`account-panel-${tab}`} aria-labelledby={`account-tab-${tab}`}>
     {tab === 0 && <><ApplicationFilterControls applications={records} value={filters} onChange={setFilters} count={filtered.length} loading={loading} /><Button sx={{ mb: 2 }} variant="outlined" onClick={() => void reload()} disabled={loading}>Обновить</Button>{loading ? <div aria-busy="true" aria-label="Загрузка заявок"><Skeleton height={90} /><Skeleton height={90} /></div> : !records.length ? <div className="empty-state"><p className="eyebrow">ВСЁ ЕЩЁ ВПЕРЕДИ</p><h2>Первая возможность уже ждёт.</h2><p>{workspace.actions[0].description}</p><Link className="button button-dark" href={workspace.actions[0].href}>{workspace.actions[0].label} <Arrow /></Link></div> : !filtered.length ? <div className="empty-state"><h2>Ничего не найдено.</h2><p>Попробуйте другой запрос или сбросьте фильтры.</p><Button onClick={() => { setFilters({ ...defaultApplicationFilters }); }}>Сбросить фильтры</Button></div> : filtered.map(item => <article className="account-record" key={item.id}><div><p className="eyebrow">{APPLICATION_TYPE_LABELS[item.type]} / {item.reference}</p><h3><button className="record-title-button" onClick={() => setDetail(item)}>{item.title} <Arrow /></button></h3><p>{formatTimestamp(item.createdAt)}{item.updatedAt !== item.createdAt && ` · Обновлена: ${formatTimestamp(item.updatedAt)}`}</p>{applicationEditReason(item) && <p className="application-edit-reason">{applicationEditReason(item)}</p>}</div><div className="record-actions"><StatusChip status={item.status} /><Button size="small" onClick={() => setDetail(item)}>Подробности</Button>{canEditApplication(item) && <Button size="small" variant="outlined" onClick={() => { setMessage(''); setEditing(item); }}>Редактировать</Button>}{!['withdrawn', 'rejected'].includes(item.status) && <Button size="small" color="inherit" onClick={() => { setWithdrawError(''); setWithdraw(item); }}>Отозвать</Button>}</div></article>)}</>}
     {tab === 1 && <>{favoritesState.error && <Alert severity="error" action={<Button onClick={() => favoritesState.retry()}>Повторить</Button>}>{favoritesState.error}</Alert>}{favoritesState.loading ? <Skeleton height={250} /> : (favorites.length ? <div className="row g-4">{models.filter(model => favorites.includes(model.id)).map(model => <div className="col-12 col-sm-6 col-lg-4" key={model.id}><ModelCard model={model} /></div>)}</div> : <div className="empty-state"><h2>Сохраните то, что вдохновляет.</h2><p>Нажмите сердце в каталоге — портфолио появится здесь и сохранится в вашем аккаунте.</p><Link href="/models" className="button button-dark">Каталог моделей <Arrow /></Link></div>)}</>}
-    {tab === 2 && <><div className="profile-application-access"><h2>Поданные заявки</h2><p>Откройте заявку, чтобы изменить данные и фотографии. Сохранённая анкета поможет заполнить следующие заявки того же типа.</p><Button variant="outlined" onClick={() => setTab(0)}>Редактировать мои заявки</Button></div><ProfileEditor user={user} /></>}
+  </section>}
+  <section role="tabpanel" id="account-panel-2" aria-labelledby="account-tab-2" hidden={tab !== 2}>
+    <div className="profile-application-access"><h2>Поданные заявки</h2><p>Откройте заявку, чтобы изменить данные и фотографии. Сохранённая анкета поможет заполнить следующие заявки того же типа.</p><Button variant="outlined" onClick={() => setTab(0)}>Редактировать мои заявки</Button></div>
+    <ProfileEditor user={user} active={tab === 2} />
   </section><ApplicationEditor application={editing} onClose={() => setEditing(null)} onSaved={updated => { setRecords(old => old.map(item => item.id === updated.id ? updated : item)); if (detail?.id === updated.id) setDetail(updated); setEditing(null); setFilters({ ...defaultApplicationFilters }); setMessage(`Заявка ${updated.reference} обновлена и отправлена на повторное рассмотрение. Анкета сохранена для следующих заявок этого типа.`); }} /><ApplicationDetails application={detail} onClose={() => setDetail(null)} /><Dialog open={!!withdraw} onClose={() => !busy && setWithdraw(null)} aria-labelledby="withdraw-title"><DialogTitle id="withdraw-title">Отозвать заявку?</DialogTitle><DialogContent>{withdrawError && <Alert severity="error" sx={{ mb: 2 }}>{withdrawError}</Alert>}<DialogContentText>Заявка «{withdraw?.title}» перестанет участвовать в отборе. Она останется в вашей истории со статусом «Отозвана».</DialogContentText></DialogContent><DialogActions><Button onClick={() => setWithdraw(null)} disabled={busy}>Оставить заявку</Button><Button onClick={() => void withdrawApplication()} disabled={busy} variant="contained">{busy ? 'Отзываем…' : 'Отозвать'}</Button></DialogActions></Dialog></>;
 }
 export function Account() { return <main id="main-content" className="page-shell account-section"><SessionGate>{user => <MemberAccount key={`${user.id}:${user.role}`} user={user} />}</SessionGate></main>; }
