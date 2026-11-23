@@ -5,6 +5,7 @@ import Link from "next/link";
 import { IconButton, MenuItem, TextField, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { events, formatEventDate, getEventStatus, type RunwayEvent } from "@/data/events";
 import EventCard from "./EventCard";
+import CalendarDownload from "./CalendarDownload";
 import "./events.css";
 
 type Period = "upcoming" | "past" | "all";
@@ -39,6 +40,8 @@ export default function EventsExplorer({ today }: { today: string }) {
     const comparison = `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`);
     return sort === "asc" ? comparison : -comparison;
   }), [query, city, type, status, period, from, to, sort, today, dateRangeError]);
+  const exportEvents = filtered.filter(event => event.date >= today && getEventStatus(event, today) !== "Отменено");
+  const advancedFilterCount = Number(status !== "all") + Number(!!from) + Number(!!to) + Number(sort !== "asc");
   const monthEvents = filtered.filter(event => event.date.startsWith(month));
   const [year, monthNumber] = month.split("-").map(Number);
   const firstDay = new Date(year, monthNumber - 1, 1, 12);
@@ -60,24 +63,25 @@ export default function EventsExplorer({ today }: { today: string }) {
   return (
     <main id="main-content" className="page-shell events-page">
       <header className="event-page-intro">
-        <p className="eyebrow">THE CALENDAR / RUNWAY MODELS</p>
-        <div className="event-heading-row"><h1 className="page-heading">Моменты,<br /><span>которые ждут.</span></h1><p className="muted">Показы, кастинги и съёмки.<br />Найдите своё место в новом сезоне.</p></div>
+        <p className="eyebrow">01 / THE RUNWAY CALENDAR</p>
+        <div className="event-heading-row"><h1 className="page-heading">ПОКАЗЫ.<br /><span>СОБЫТИЯ.</span></h1><p className="muted">Место встречи новых лиц и новых идей.<br />Выберите свою следующую главу.</p></div>
       </header>
       <div className="events-period-toolbar">
         <ToggleButtonGroup value={period} exclusive onChange={(_, value: Period | null) => value && changePeriod(value)} size="small" aria-label="Период событий"><ToggleButton value="upcoming">Предстоящие</ToggleButton><ToggleButton value="past">Архив</ToggleButton><ToggleButton value="all">Все</ToggleButton></ToggleButtonGroup>
         <p className="muted">Сегодня: {formatEventDate(today, { day: "numeric", month: "long", year: "numeric" })} · время Казахстана</p>
       </div>
-      <div className="events-filter-grid" aria-label="Фильтры событий">
+      <section className="events-filter-panel" aria-label="Фильтры событий"><div className="events-filter-grid">
         <TextField label="Найти событие" placeholder="Название, город или площадка" value={query} onChange={event => setQuery(event.target.value)} size="small" />
         <TextField select label="Город" value={city} onChange={event => setCity(event.target.value)} size="small"><MenuItem value="all">Все города</MenuItem>{Array.from(new Set(events.map(event => event.city))).sort().map(value => <MenuItem value={value} key={value}>{value}</MenuItem>)}</TextField>
         <TextField select label="Направление" value={type} onChange={event => setType(event.target.value)} size="small"><MenuItem value="all">Все события</MenuItem><MenuItem value="Показ">Показы</MenuItem><MenuItem value="Кастинг">Кастинги</MenuItem><MenuItem value="Съёмка">Съёмки</MenuItem></TextField>
+      </div><details className="events-advanced-filters"><summary>Ещё фильтры <span>{advancedFilterCount ? `(${advancedFilterCount})` : "+"}</span></summary><div className="events-advanced-grid">
         <TextField select label="Статус" value={status} onChange={event => setStatus(event.target.value)} size="small"><MenuItem value="all">Любой статус</MenuItem><MenuItem value="Открыт набор">Открыт набор</MenuItem><MenuItem value="Закрыто">Приём закрыт</MenuItem><MenuItem value="Отменено">Отменено</MenuItem><MenuItem value="Завершено">Завершено</MenuItem></TextField>
         <TextField label="С даты" type="date" value={from} error={dateRangeError} onChange={event => { setFrom(event.target.value); if (event.target.value) setMonth(event.target.value.slice(0, 7)); }} slotProps={{ inputLabel: { shrink: true } }} size="small" />
         <TextField label="По дату" type="date" value={to} error={dateRangeError} onChange={event => setTo(event.target.value)} slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: from || undefined } }} size="small" />
         <TextField select label="По дате" value={sort} onChange={event => setSort(event.target.value)} size="small"><MenuItem value="asc">Сначала ближайшие</MenuItem><MenuItem value="desc">Сначала поздние</MenuItem></TextField>
-      </div>
+      </div></details></section>
       {dateRangeError && <p className="event-filter-error" role="alert">Дата окончания должна быть не раньше даты начала.</p>}
-      <div className="events-view-toolbar"><span className="eyebrow" role="status" aria-live="polite">Найдено событий: {filtered.length}</span><div className="d-flex align-items-center gap-3"><button type="button" className="event-reset" onClick={reset}>Сбросить фильтры</button><ToggleButtonGroup value={view} exclusive onChange={(_, value: string | null) => value && setView(value)} size="small" aria-label="Вид событий"><ToggleButton value="list">Список</ToggleButton><ToggleButton value="calendar">Календарь</ToggleButton></ToggleButtonGroup></div></div>
+      <div className="events-view-toolbar"><span className="eyebrow" role="status" aria-live="polite">Найдено событий: {filtered.length}</span><div className="events-view-actions"><CalendarDownload events={exportEvents} label="Скачать даты (.ics)" /><button type="button" className="event-reset" onClick={reset}>Сбросить фильтры</button><ToggleButtonGroup value={view} exclusive onChange={(_, value: string | null) => value && setView(value)} size="small" aria-label="Вид событий"><ToggleButton value="list">Список</ToggleButton><ToggleButton value="calendar">Календарь</ToggleButton></ToggleButtonGroup></div></div>
       {view === "list" ? filtered.length ? <div className="row g-4 g-xl-5">{filtered.map(event => <div key={event.id} className="col-md-6 col-xl-4"><EventCard event={event} today={today} /></div>)}</div> : <div className="events-empty"><h2>{period === "past" ? "Архив по этим условиям пуст." : "Пока ничего не нашлось."}</h2><p className="muted">Попробуйте другой город, статус или диапазон дат.</p><button type="button" className="button button-dark" onClick={reset}>Сбросить фильтры ↗</button></div> : <section className="events-calendar" aria-label="Календарь событий">
         <div className="calendar-month"><h2 id="calendar-month-title" aria-live="polite">{monthTitle}</h2><div className="calendar-controls"><button type="button" className="event-reset calendar-today" onClick={() => setMonth(today.slice(0, 7))}>Текущий месяц</button><IconButton aria-label="Предыдущий месяц" onClick={() => setMonth(value => shiftCalendarMonth(value, -1))}>←</IconButton><IconButton aria-label="Следующий месяц" onClick={() => setMonth(value => shiftCalendarMonth(value, 1))}>→</IconButton></div></div>
         <div className="calendar-weekdays" aria-hidden="true">{["ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ", "ВС"].map(day => <span key={day}>{day}</span>)}</div>

@@ -13,7 +13,7 @@ export default async function ShootsPage() {
   const shoots = events.filter(event => event.type === "Съёмка").sort((a, b) => Number(isEventAvailable(b, today)) - Number(isEventAvailable(a, today)) || a.date.localeCompare(b.date));
   return (
     <main id="main-content" className="page-shell shoots-page">
-      <header className="event-page-intro"><p className="eyebrow">IN FOCUS / СЪЁМОЧНЫЕ ПРОЕКТЫ</p><div className="event-heading-row"><h1 className="page-heading">У каждого кадра<br /><span>есть история.</span></h1><p className="muted">Editorial, fashion и коммерческие съёмки.<br />Станьте частью следующей.</p></div></header>
+      <header className="event-page-intro"><p className="eyebrow">02 / IN FOCUS</p><div className="event-heading-row"><h1 className="page-heading">СЪЁМКИ.<br /><span>НОВЫЙ РАКУРС.</span></h1><p className="muted">Editorial, fashion и коммерческие съёмки.<br />Станьте частью следующей.</p></div></header>
       <section aria-label="Проекты съёмок">{shoots.map((shoot, index) => {
         const available = isEventAvailable(shoot, today);
         const status = getEventStatus(shoot, today);

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { events, formatEventDate, getEventStatus, getToday, isEventAvailable, isViewerRegistrationAvailable } from "@/data/events";
+import CalendarDownload from "@/components/events/CalendarDownload";
 import "@/components/events/events.css";
 
 export const dynamicParams = false;
@@ -37,6 +38,7 @@ export default async function EventDetail({ params }: { params: Promise<{ id: st
         </div>
         <aside className="col-lg-4"><div className="event-booking-panel"><p className="eyebrow">ДЕТАЛИ СОБЫТИЯ</p><dl><div><dt>Когда</dt><dd><time dateTime={`${event.date}T${event.time}:00+05:00`}>{formatEventDate(event.date, { day: "numeric", month: "long", year: "numeric" })}<br />{event.time} · время Казахстана</time></dd></div><div><dt>Где</dt><dd>{event.city}<br />{event.venue}</dd></div><div><dt>Организатор</dt><dd>{event.organizer}</dd></div><div><dt>Заявки до</dt><dd><time dateTime={event.deadline}>{formatEventDate(event.deadline, { day: "numeric", month: "long", year: "numeric" })}</time>, включительно</dd></div></dl>
           {available ? <><Link href={`/casting?event=${event.id}`} className="button button-dark">Подать заявку модели <span aria-hidden="true">↗</span></Link>{viewerAvailable ? <div className="event-viewer-block"><p className="eyebrow">ДЛЯ ЗРИТЕЛЕЙ</p><p>Открытый показ · вместимость {event.seats} мест</p><Link href={`/casting?event=${event.id}&role=viewer`} className="button button-light">Записаться зрителем ↗</Link><p className="muted event-small-note">Посещение показа и участие в составе моделей — разные записи. Статус вашей заявки появится в кабинете.</p></div> : <p className="muted event-small-note">{event.openToPublic ? "Зрительские места на этот показ недоступны." : "Закрытое событие. Зрительская запись недоступна."}</p>}</> : <div className="event-unavailable"><h3>Приём заявок закрыт</h3><p>{closedReason}</p><Link href="/events" className="text-link">Выбрать другое событие ↗</Link></div>}
+          {event.date >= today && status !== "Отменено" && <CalendarDownload events={[event]} filename={event.id} />}
           <p className="muted event-small-note">Событие, команда и площадка — редакционный пример. Заявка сохраняется на сервере сайта; она не подтверждает участие в реальном мероприятии.</p>
         </div></aside>
       </div>
