@@ -285,3 +285,148 @@
   .calendar-event>strong{font-size:22px}
   .calendar-event>span,.calendar-event>small{font-size:14px}
 }
+
+/* Persistent event search and a shorter first screen. */
+.events-filter-panel .events-search{display:flex;width:100%}
+.events-filter-panel .events-advanced-filters{margin-top:10px}
+.events-filter-panel .events-advanced-grid{grid-template-columns:repeat(3,minmax(0,1fr));padding-top:6px}
+.events-result-count{font-size:14px;line-height:1.6;margin:0;color:#111}
+.events-view-toolbar{align-items:center;margin:22px 0 14px}
+.events-result-tools{margin-bottom:30px}
+.events-result-tools>summary{font-size:14px;line-height:1.5;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:20px;cursor:pointer;min-height:44px;max-width:340px;padding:8px 0}
+.events-result-tools>summary::-webkit-details-marker{display:none}
+.events-result-tools>summary:focus-visible{outline:2px solid #111;outline-offset:4px}
+.events-utility-toolbar{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;padding:10px 0 20px}
+.events-results{scroll-margin-top:110px}
+.event-title-meta{display:flex;gap:18px 28px;flex-wrap:wrap;align-items:center;font-size:16px;line-height:1.6}
+.event-intent-bar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:36px;border-top:1px solid #111;border-bottom:1px solid #bbb;padding:26px 0;margin:0 0 40px}
+.event-intent{display:flex;justify-content:space-between;align-items:center;gap:24px;min-width:0}
+.event-intent p{font-size:14px;line-height:1.7;margin:0}
+.event-intent .eyebrow{margin-bottom:7px}
+.event-intent .button{flex-shrink:0;max-width:260px}
+.event-intent-info{display:block}
+.event-intent-closed{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.event-intent-closed h2{font-size:28px;font-weight:500;line-height:1.1;letter-spacing:-.035em;margin:0 0 12px}
+.event-intent-closed p{font-size:16px;line-height:1.7;margin:0}
+.event-intent-closed>.button{flex-shrink:0}
+@media(max-width:1199px){.event-intent{align-items:flex-start;flex-direction:column;gap:18px}.event-intent .button{width:100%;max-width:none}}
+@media(max-width:767px){
+  .events-page{padding-top:24px}
+  .events-page .event-page-intro{margin-bottom:24px}
+  .events-page .event-heading-row .page-heading{font-size:46px;margin-top:16px;line-height:.94}
+  .events-page .event-heading-row>p{font-size:15px;line-height:1.6;margin-top:16px}
+  .events-period-toolbar{margin-bottom:18px;gap:0}
+  .events-period-toolbar>p{display:none}
+  .events-filter-panel{padding:18px 0 8px}
+  .events-filter-panel .events-advanced-grid{grid-template-columns:1fr 1fr;gap:18px 12px}
+  .events-view-toolbar{flex-direction:row;align-items:center;gap:12px;margin:18px 0 10px}
+  .events-view-toolbar>.MuiToggleButtonGroup-root{flex-shrink:0}
+  .events-view-toolbar .MuiToggleButton-root{padding:9px 12px;min-height:44px}
+  .events-result-count{max-width:125px;font-size:14px}
+  .events-result-tools{margin-bottom:20px}
+  .events-result-tools>summary{font-size:14px;max-width:none}
+  .events-utility-toolbar{flex-direction:column;align-items:flex-start;gap:10px}
+  .event-detail-page{padding-top:24px}
+  .event-detail-heading{margin-bottom:22px}
+  .event-detail-heading .page-heading{font-size:clamp(36px,10vw,58px);line-height:1;margin:14px 0 20px}
+  .event-back-link{margin-bottom:18px}
+  .event-title-meta{font-size:14px;gap:12px}
+  .event-intent-bar{grid-template-columns:1fr;gap:24px;padding:22px 0;margin-bottom:26px}
+  .event-intent{gap:14px}
+  .event-intent .button{width:100%}
+  .event-intent+.event-intent{padding-top:22px;border-top:1px solid #ddd}
+  .event-intent-closed{display:block}
+  .event-intent-closed>.button{margin-top:20px;width:100%}
+  .event-intent-closed h2{font-size:26px}
+  .event-intent-closed p{font-size:15px}
+}
+@media(max-width:380px){.events-filter-panel .events-advanced-grid{grid-template-columns:1fr}.events-page .event-heading-row .page-heading{font-size:40px}.events-view-toolbar .MuiToggleButton-root{padding:9px 9px;font-size:13px}}
+
+/* Runway editorial typography: expressive serif titles, quiet sans controls. */
+:is(.events-page,.event-detail-page,.academy-page,.shoots-page){padding-top:46px}
+.event-heading-row .page-heading,
+.event-detail-heading .page-heading,
+.event-card-title h2,
+.event-detail-copy h2,
+.events-empty h2,
+.events-bottom-cta h2,
+.calendar-empty h3,
+.academy-courses>.section-head h2,
+.academy-course h2,
+.academy-info-note h2,
+.shoot-project-info h2,
+.event-intent-closed h2{
+  font-family:var(--font-display,var(--font-runway,Georgia,"Times New Roman",serif));
+  font-weight:400;
+  letter-spacing:-.025em;
+  text-transform:none;
+}
+.event-page-intro,.academy-intro{margin-bottom:38px}
+.event-heading-row{align-items:flex-end;gap:30px}
+.event-heading-row .page-heading{font-size:clamp(54px,6.8vw,102px);line-height:.97;margin:0;max-width:1000px}
+.event-heading-row .page-heading em{font-weight:400}
+.event-heading-row>p{flex:0 1 290px;font-size:14px;line-height:1.65;margin:0 0 5px}
+.event-detail-heading .page-heading{font-size:clamp(52px,7.5vw,112px);line-height:.95}
+.event-card-title h2{font-size:clamp(29px,2.8vw,42px);line-height:1}
+.event-card-meta{font-weight:400}
+.event-card-photo{aspect-ratio:1.02}
+.event-booking-panel{background:#f7f7f7}
+.event-intent-bar{border-top-color:#b7b7b7}
+.events-filter-panel{border-top-color:#bbb;padding-top:20px}
+.events-period-toolbar{margin-bottom:18px}
+.events-page .MuiToggleButton-root{font-family:Arial,Helvetica,sans-serif;font-weight:400}
+.events-page .MuiToggleButton-root.Mui-selected{background:#111;color:#fff}
+.events-result-tools{margin-bottom:24px}
+.event-intent p,.event-title-meta,.event-reset,.calendar-download-button,
+.events-result-count,.events-result-tools>summary,.events-advanced-filters>summary{font-family:Arial,Helvetica,sans-serif}
+.events-bottom-cta{margin-top:64px;border-top-color:#bbb;padding-top:36px}
+.events-bottom-cta h2{font-size:clamp(34px,4.2vw,60px);margin:0;line-height:1}
+.academy-lead-photo{aspect-ratio:2.6;margin-bottom:64px}
+.academy-lead-photo img{filter:grayscale(1);object-position:center 36%}
+.academy-courses>.section-head h2{font-size:clamp(38px,4.7vw,64px);margin:0}
+.academy-course{border-top-color:#bbb;padding-top:28px}
+.academy-course h2{font-size:clamp(38px,4.6vw,64px);line-height:.98}
+.academy-price{font-size:23px;font-weight:400;letter-spacing:0}
+.academy-info-note h2{font-size:clamp(38px,4.7vw,64px);line-height:1;margin:0 0 24px}
+.shoot-project{border-top-color:#bbb;padding-top:28px}
+.shoot-project-info h2{font-size:clamp(40px,4.9vw,70px);line-height:.97}
+.shoot-project-info>.d-flex>.eyebrow{font-size:14px;letter-spacing:0;text-transform:none}
+@media(max-width:1199px){
+  .event-heading-row>p{margin-top:20px;max-width:550px}
+}
+@media(max-width:767px){
+  :is(.events-page,.event-detail-page,.academy-page,.shoots-page){padding-top:24px}
+  .event-page-intro,.academy-intro,.events-page .event-page-intro{margin-bottom:22px}
+  .event-heading-row .page-heading,
+  .events-page .event-heading-row .page-heading,
+  .academy-page .event-heading-row .page-heading,
+  .shoots-page .event-heading-row .page-heading{font-size:clamp(42px,10.8vw,64px);line-height:.98;margin:0}
+  .event-heading-row>p,.events-page .event-heading-row>p{font-size:14px;line-height:1.6;margin-top:12px}
+  .events-period-toolbar{margin-bottom:14px}
+  .events-filter-panel{padding-top:16px}
+  .events-view-toolbar{margin-top:14px}
+  .events-result-tools{margin-bottom:16px}
+  .event-card-title h2{font-size:36px}
+  .event-card-meta{margin-top:16px}
+  .event-detail-heading .page-heading{font-size:clamp(40px,10vw,62px);line-height:1;margin:16px 0 20px}
+  .event-intent-bar{padding-top:18px;gap:20px}
+  .event-intent .eyebrow{font-size:12px;letter-spacing:.05em}
+  .event-detail-copy h2{font-size:38px}
+  .events-bottom-cta h2{font-size:38px;line-height:1}
+  .academy-lead-photo{aspect-ratio:1.24;margin-bottom:40px}
+  .academy-courses>.section-head h2{font-size:42px}
+  .academy-course h2{font-size:42px;line-height:1}
+  .academy-course-top{margin-bottom:20px}
+  .academy-info-note h2{font-size:40px}
+  .shoot-project-info h2{font-size:44px;line-height:1;margin-top:24px}
+}
+@media(max-width:380px){
+  .event-heading-row .page-heading,
+  .events-page .event-heading-row .page-heading,
+  .academy-page .event-heading-row .page-heading,
+  .shoots-page .event-heading-row .page-heading{font-size:40px}
+  .event-card-title h2{font-size:33px}
+  .event-detail-heading .page-heading{font-size:38px}
+  .academy-course h2{font-size:38px}
+  .shoot-project-info h2{font-size:39px}
+}
