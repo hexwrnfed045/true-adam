@@ -1321,3 +1321,538 @@
     color: #000;
   }
 }
+
+/* Preserve the editorial layout while keeping functional text readable. */
+.catalog-loading {
+  min-height: 220px;
+  padding: 32px 0;
+  border-top: 1px solid var(--ink);
+  font-size: 14px;
+  color: #555;
+}
+.models-page .model-filters .MuiInputLabel-root,
+.models-page .model-filters .MuiInputBase-input {
+  font-size: 14px;
+}
+.models-page .model-results-bar,
+.models-page .model-results-bar .MuiFormControlLabel-label,
+.models-page .model-reset {
+  font-size: 13px;
+}
+.models-page .model-saving {
+  font-size: 12px;
+}
+.models-page .models-demo-note {
+  font-size: 12px;
+  color: #666;
+}
+.model-card .model-card-details {
+  font-size: 12px;
+  letter-spacing: 0;
+  color: #555;
+}
+.model-profile .model-back,
+.model-profile .profile-topline,
+.model-profile .profile-section-nav {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.model-profile .profile-rail h2,
+.model-profile .profile-rail h2 > span,
+.model-profile .profile-stats dt {
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+.model-profile .profile-stats dd {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.model-profile .profile-action-hint,
+.model-profile .profile-demo,
+.model-profile .profile-gallery-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #626262;
+}
+.model-profile .profile-booking {
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.model-profile .profile-photo-caption {
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.model-profile .profile-early-booking {
+  display: none;
+}
+@media (max-width: 767px) {
+  .models-page .models-heading-row {
+    gap: 15px;
+    margin-bottom: 18px;
+  }
+  .models-page .models-demo-note {
+    margin-bottom: 19px;
+  }
+  .models-page .model-filters {
+    --bs-gutter-y: 18px;
+    padding-top: 20px;
+  }
+  .models-page .model-results-bar {
+    margin: 14px 0 20px;
+  }
+  .model-profile .profile-early-booking {
+    display: flex;
+    margin-top: 18px;
+    min-height: 48px;
+    padding: 12px 17px;
+  }
+  .model-profile .profile-section-nav {
+    padding-top: 8px;
+    padding-bottom: 14px;
+    gap: 24px;
+  }
+  .model-profile .profile-stats > div {
+    display: block;
+    padding: 12px 0;
+  }
+  .model-profile .profile-stats dd {
+    margin-top: 4px;
+    text-align: left;
+  }
+  .model-profile .profile-rail h2 > span {
+    font-size: 11px;
+  }
+}
+@media (max-width: 575px) {
+  .models-page .model-filters > div:nth-child(2),
+  .models-page .model-filters > div:nth-child(3) {
+    width: 50%;
+  }
+  .model-card .model-card-details {
+    flex-wrap: wrap;
+    gap: 5px 14px;
+  }
+}
+
+/* Compact talent index, shared by the homepage without duplicating the catalog. */
+.home-talent-index {
+  color: #111;
+  background: #fff;
+}
+.home-talent-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 0 0 30px;
+}
+.home-talent-search {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  width: min(100%, 360px);
+}
+.home-talent-search .MuiInputBase-root,
+.home-talent-search .MuiInputLabel-root {
+  font-size: 14px;
+  color: #555;
+}
+.home-talent-search .MuiInputBase-input {
+  padding-top: 9px;
+  padding-bottom: 11px;
+}
+.home-talent-search button {
+  border: 0;
+  border-bottom: 1px solid #777;
+  background: transparent;
+  padding: 10px 0;
+  min-height: 42px;
+  color: #555;
+  font-size: 12px;
+}
+.home-talent-count {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+.home-talent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 48px 28px;
+}
+.home-talent-grid .model-card {
+  min-width: 0;
+}
+.home-talent-grid .model-card .model-card-image {
+  aspect-ratio: 3 / 4;
+}
+.home-talent-grid .model-card .model-card-meta {
+  margin-top: 15px;
+}
+.home-talent-grid .model-card .model-card-meta h2 {
+  font-size: clamp(24px, 2.7vw, 42px);
+  text-transform: uppercase;
+}
+.home-talent-grid .model-card .model-card-details {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  text-transform: none;
+  flex-wrap: wrap;
+  gap: 3px 12px;
+}
+.home-talent-grid .model-card .model-open {
+  display: none;
+}
+.home-talent-empty {
+  padding: 60px 0;
+  border-top: 1px solid #ddd;
+}
+.home-talent-empty h3 {
+  font-family: var(--font-display, Georgia), serif;
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1.1;
+  margin-bottom: 18px;
+}
+.home-talent-empty p {
+  font-size: 14px;
+  color: #666;
+}
+.home-talent-empty button {
+  min-height: 44px;
+  padding: 10px 0;
+  border: 0;
+  border-bottom: 1px solid #111;
+  background: transparent;
+  font-size: 14px;
+}
+@media (max-width: 650px) {
+  .home-talent-toolbar {
+    gap: 16px;
+    padding-bottom: 24px;
+  }
+  .home-talent-search {
+    width: min(100%, 290px);
+    gap: 12px;
+  }
+  .home-talent-count {
+    font-size: 11px;
+  }
+  .home-talent-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px 14px;
+  }
+  .home-talent-grid .model-card .model-card-meta h2 {
+    font-size: clamp(23px, 5.6vw, 34px);
+  }
+  .home-talent-grid .model-card .model-card-details {
+    display: block;
+    font-size: 12px;
+  }
+  .home-talent-grid .model-card .model-card-details > span {
+    display: block;
+  }
+  .home-talent-grid .model-card .model-favorite.MuiIconButton-root {
+    top: 5px;
+    right: 5px;
+  }
+}
+@media (max-width: 360px) {
+  .home-talent-toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .home-talent-search {
+    width: 100%;
+  }
+  .home-talent-count {
+    margin: 0;
+  }
+}
+
+/* Profile details open individually, with the same controls available to keyboards. */
+.profile-panel-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 13px;
+  min-height: 40px;
+  border: 0;
+  border-bottom: 1px solid #b9b9b9;
+  background: transparent;
+  padding: 4px 0;
+  color: #111;
+  font: inherit;
+  transition: border-color 180ms ease;
+}
+.profile-panel-controls button:hover,
+.profile-panel-controls button[aria-expanded="true"] {
+  border-color: #111;
+}
+.profile-panel-controls button > span {
+  font-size: 17px;
+  font-weight: 300;
+}
+.profile-details-modal .MuiBackdrop-root,
+.photo-viewer-modal .MuiBackdrop-root {
+  background: #1119;
+  backdrop-filter: blur(3px);
+}
+.profile-details-paper.MuiPaper-root {
+  margin: 24px;
+  max-height: calc(100dvh - 48px);
+  background: #fff;
+  border: 1px solid #d7d7d7;
+  box-shadow: none;
+}
+.profile-details-paper .profile-panel-body {
+  padding: 26px 38px 30px;
+  animation: profile-panel-arrive 280ms cubic-bezier(.2,.65,.3,1) both;
+}
+.profile-panel-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding-bottom: 20px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid #111;
+}
+.profile-panel-top > span {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.profile-panel-top .MuiIconButton-root {
+  width: 44px;
+  height: 44px;
+  color: #111;
+  font-size: 28px;
+}
+.profile-panel-model {
+  font-family: var(--font-display, Georgia), serif;
+  font-size: 42px;
+  line-height: 1.05;
+  letter-spacing: -.025em;
+  margin: 0 0 23px;
+  text-transform: uppercase;
+}
+.profile-panel-body h2 {
+  font: 13px/1.5 Arial, sans-serif;
+  margin: 0 0 7px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.profile-panel-description,
+.profile-panel-note {
+  font-size: 12px;
+  line-height: 1.65;
+  color: #626262;
+}
+.profile-panel-measurements {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 30px;
+  margin: 25px 0 30px;
+}
+.profile-panel-measurements > div {
+  padding: 15px 0;
+  border-top: 1px solid #ddd;
+}
+.profile-panel-measurements dt {
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #626262;
+}
+.profile-panel-measurements dd {
+  font-family: var(--font-display, Georgia), serif;
+  font-size: 29px;
+  line-height: 1.15;
+  margin: 7px 0 0;
+}
+.profile-panel-bio {
+  font-size: 15px;
+  line-height: 1.85;
+  margin: 26px 0 36px;
+  color: #333;
+}
+.profile-panel-booking {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  padding: 17px 0;
+  border-top: 1px solid #111;
+  border-bottom: 1px solid #111;
+  font-size: 13px;
+  min-height: 54px;
+}
+.profile-panel-note {
+  margin: 19px 0 0;
+}
+.profile-portrait-trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.profile-portrait-trigger img {
+  transition: transform 450ms cubic-bezier(.2,.65,.3,1);
+}
+.profile-portrait-trigger:hover img {
+  transform: scale(1.018);
+}
+.profile-portrait-trigger:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -6px;
+}
+.profile-portrait-view {
+  position: absolute;
+  left: 17px;
+  bottom: 17px;
+  display: flex;
+  align-items: center;
+  gap: 25px;
+  padding: 11px 14px;
+  background: #ffffffed;
+  color: #111;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.photo-viewer-paper.MuiPaper-root {
+  background: #fff;
+  border: 1px solid #ddd;
+  box-shadow: none;
+}
+.photo-viewer-paper .MuiDialogContent-root {
+  padding: 16px 25px 23px;
+}
+.photo-viewer-paper .backstage-dialog-bar {
+  padding-bottom: 12px;
+  color: #555;
+}
+.photo-viewer-paper .photo-viewer-frame {
+  height: min(65dvh, 760px);
+  min-height: 180px;
+  background: #f5f5f3;
+  touch-action: pan-y;
+}
+.photo-viewer-image {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+.photo-viewer-image.is-loaded {
+  opacity: 1;
+  animation: photo-frame-arrive 280ms ease both;
+}
+.photo-viewer-loading,
+.photo-viewer-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 25px;
+  color: #626262;
+  font-size: 13px;
+  text-align: center;
+}
+.photo-viewer-error a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.photo-viewer-paper .backstage-dialog-caption {
+  align-items: flex-start;
+  padding-top: 20px;
+  gap: 25px;
+}
+.photo-viewer-paper .backstage-dialog-caption h2 {
+  font-family: var(--font-display, Georgia), serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -.015em;
+  margin-bottom: 7px;
+}
+.photo-viewer-paper .backstage-dialog-caption p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.photo-viewer-paper .backstage-controls {
+  gap: 10px;
+}
+.photo-viewer-paper .backstage-controls > span {
+  font-size: 12px;
+}
+.photo-viewer-paper .backstage-controls .MuiIconButton-root {
+  border: 1px solid #ccc;
+  border-radius: 0;
+}
+@keyframes profile-panel-arrive {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes photo-frame-arrive {
+  from { opacity: .3; transform: scale(.992); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (max-width: 650px) {
+  .profile-details-paper.MuiPaper-root,
+  .photo-viewer-paper.MuiPaper-root {
+    margin: 12px;
+    width: calc(100% - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+  .profile-details-paper .profile-panel-body {
+    padding: 15px 22px 24px;
+  }
+  .profile-panel-top {
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+  }
+  .profile-panel-model {
+    font-size: 35px;
+  }
+  .profile-panel-measurements {
+    gap: 0 18px;
+  }
+  .profile-panel-measurements dt {
+    font-size: 10px;
+  }
+  .profile-panel-measurements dd {
+    font-size: 26px;
+  }
+  .photo-viewer-paper .MuiDialogContent-root {
+    padding: 10px 15px 20px;
+  }
+  .photo-viewer-paper .photo-viewer-frame {
+    height: 52dvh;
+  }
+  .photo-viewer-paper .backstage-dialog-caption {
+    gap: 16px;
+  }
+  .photo-viewer-paper .backstage-dialog-caption h2 {
+    font-size: 25px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-panel-body,
+  .photo-viewer-image.is-loaded {
+    animation: none !important;
+  }
+  .profile-portrait-trigger img,
+  .photo-viewer-image,
+  .profile-panel-controls button {
+    transition: none !important;
+  }
+}

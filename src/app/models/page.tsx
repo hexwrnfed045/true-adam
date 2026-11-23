@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import ModelCatalog from "@/components/models/ModelCatalog";
 import { models } from "@/data/models";
 
@@ -7,15 +8,13 @@ export const metadata: Metadata = { title: "Модели", description: "Кат�
 export default function ModelsPage() {
   return (
     <main id="main-content" className="page-shell models-page">
-      <header className="models-heading-row">
-        <div>
-          <p className="eyebrow">RUNWAY MODELS / THE TALENT</p>
-          <h1 className="page-heading">NEW FACES<span className="models-count">({String(models.length).padStart(2, "0")})</span></h1>
-        </div>
-        <p className="models-intro">Индивидуальность в каждом кадре.<br />Найдите лицо для следующей истории.</p>
+      <header className="page-heading">
+        <h1>Модели</h1>
+        <p>{models.length} демонстрационных портфолио.</p>
       </header>
-      <p className="models-demo-note">Демонстрационный каталог: вымышленные имена, параметры и опыт. Стоковые фотографии иллюстрируют визуальную концепцию.</p>
-      <ModelCatalog />
+      <Suspense fallback={<div className="catalog-loading" aria-busy="true" role="status">Загружаем каталог и фильтры…</div>}>
+        <ModelCatalog />
+      </Suspense>
     </main>
   );
 }
