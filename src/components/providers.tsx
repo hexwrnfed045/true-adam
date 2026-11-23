@@ -2,7 +2,7 @@
 import { SessionProvider } from "./session-provider";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 const theme = createTheme({
-  palette: { primary: { main: "#171715" }, background: { default: "#f7f7f2", paper: "#f7f7f2" }, text: { primary: "#171715", secondary: "#66665f" } },
+  palette: { primary: { main: "#111111" }, background: { default: "#ffffff", paper: "#ffffff" }, text: { primary: "#111111", secondary: "#626262" } },
   typography: { fontFamily: "Arial, Helvetica, sans-serif", button: { textTransform: "none", fontWeight: 500 } },
   shape: { borderRadius: 0 },
   components: {

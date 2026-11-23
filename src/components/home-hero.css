@@ -1,249 +1,55 @@
-.hero-famous-panel {
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-  min-height:620px
+.chapter-hero { padding-top:18px; padding-bottom:70px; }
+.chapter-hero-kicker { display:flex; justify-content:space-between; gap:20px; text-transform:uppercase; font-size:12px; letter-spacing:.09em; border-top:1px solid var(--ink); padding-top:16px; }
+.chapter-hero-heading { display:grid; grid-template-columns:1fr 32%; gap:30px; align-items:end; padding:40px 0 38px; }
+.chapter-hero-heading h1 { font-family:var(--font-display),Georgia,serif; font-size:clamp(76px,8.8vw,148px); line-height:.78; letter-spacing:-.065em; font-weight:400; margin:0; }
+.chapter-hero-heading h1 em { font-weight:400; }
+.chapter-hero-heading>div { padding-bottom:4px; }
+.chapter-hero-heading p { font-size:16px; line-height:1.6; margin-bottom:24px; }
+.chapter-photo-story { position:relative; display:grid; grid-template-columns:64% 1fr; gap:5%; padding-bottom:65px; }
+.chapter-portrait { height:clamp(430px,54vw,760px); position:relative; background:#e7e7e7; overflow:hidden; }
+.chapter-portrait img,.chapter-secondary-image img { filter:grayscale(1); }
+.chapter-portrait img { animation:portrait-enter .5s ease; }
+.chapter-image-label { position:absolute; left:20px; top:20px; font-size:11px; color:white; letter-spacing:.11em; text-shadow:0 1px 4px #333; }
+.chapter-secondary { padding-top:18%; }
+.chapter-secondary-image { position:relative; width:100%; aspect-ratio:3/4; background:#e7e7e7; }
+.chapter-secondary p { font-family:var(--font-display),Georgia,serif; font-size:clamp(25px,2.5vw,43px); line-height:1; margin:28px 0 18px; }
+.chapter-icon-name { position:absolute; left:3%; bottom:14px; z-index:1; font-family:var(--font-display),Georgia,serif; font-size:clamp(58px,8.5vw,142px); font-weight:500; letter-spacing:-.055em; line-height:.72; text-transform:uppercase; pointer-events:none; }
+.chapter-icon-name span { display:block; }
+.chapter-icon-name span:first-child { color:#fff; padding-bottom:12px; text-shadow:0 1px 12px #0002; }
+.chapter-icon-controls { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:15px 0 5px; }
+.chapter-icon-controls p { font-size:12px; color:var(--muted); margin:0; text-align:right; }
+.chapter-icon-select { display:flex; gap:24px; flex-wrap:wrap; }
+.chapter-icon-select button { min-height:44px; padding:0; background:transparent; border:0; border-bottom:1px solid transparent; font-size:13px; text-transform:uppercase; letter-spacing:.05em; }
+.chapter-icon-select button[aria-pressed=true] { border-bottom-color:currentColor; }
+.chapter-photo-credits { color:var(--muted); font-size:12px; line-height:1.6; margin-top:14px; }
+.chapter-photo-credits summary { cursor:pointer; width:fit-content; min-height:30px; }
+.chapter-photo-credits p { margin:6px 0; }
+.chapter-photo-credits a { text-decoration:underline; text-underline-offset:3px; }
+@keyframes portrait-enter { from { opacity:.45; } to { opacity:1; } }
+@media(max-width:900px) {
+ .chapter-hero-heading { grid-template-columns:1fr 34%; }
+ .chapter-hero-heading h1 { font-size:11vw; }
+ .chapter-hero-heading p { font-size:14px; }
+ .chapter-photo-story { grid-template-columns:63% 1fr; gap:4%; }
+ .chapter-icon-controls { align-items:flex-start; flex-direction:column; gap:12px; }
+ .chapter-icon-controls p { text-align:left; }
+ .chapter-icon-name { font-size:10.6vw; }
 }
-.hero-famous-photo {
-  flex:1;
-  min-height:470px
+@media(max-width:650px) {
+ .chapter-hero { padding-top:5px; padding-bottom:40px; }
+ .chapter-hero-kicker { font-size:10px; letter-spacing:.025em; gap:10px; }
+ .chapter-hero-heading { padding:30px 0 25px; grid-template-columns:1fr; gap:25px; }
+ .chapter-hero-heading h1 { font-size:17.2vw; }
+ .chapter-hero-heading>div { display:flex; align-items:end; justify-content:space-between; gap:20px; }
+ .chapter-hero-heading p { font-size:13px; margin:0; }
+ .chapter-hero-heading .editorial-link { max-width:140px; font-size:12px; }
+ .chapter-photo-story { grid-template-columns:1fr; padding-bottom:38px; }
+ .chapter-portrait { height:auto; aspect-ratio:4/5; }
+ .chapter-image-label { top:14px; left:14px; font-size:10px; }
+ .chapter-secondary { display:none; }
+ .chapter-icon-name { left:4%; bottom:6px; font-size:14.2vw; line-height:.8; }
+ .chapter-icon-name span:first-child { padding-bottom:6px; }
+ .chapter-icon-select { gap:23px; }
+ .chapter-icon-controls { padding-top:10px; }
 }
-.hero-famous-photo:after {
-  content:"";
-  position:absolute;
-  inset:45% 0 0;
-  background:linear-gradient(transparent,rgba(0,0,0,.68));
-  pointer-events:none
-}
-.hero-famous-name.hero-photo-tag {
-  z-index:1;
-  bottom:22px;
-  align-items:flex-end;
-  gap:12px
-}
-.hero-famous-name small {
-  display:block;
-  font-size:8px;
-  font-weight:400;
-  letter-spacing:1.6px;
-  margin-bottom:7px
-}
-.hero-famous-name strong {
-  display:block;
-  font-size:clamp(22px,2.5vw,36px);
-  font-weight:400;
-  letter-spacing:-1.1px;
-  line-height:1.1
-}
-.hero-famous-arrows {
-  display:flex;
-  gap:7px;
-  flex-shrink:0
-}
-.hero-famous-arrows .MuiIconButton-root {
-  width:34px;
-  height:34px;
-  border:1px solid #ffffff80;
-  color:#fff;
-  font-size:20px;
-  border-radius:0
-}
-.hero-famous-arrows .MuiIconButton-root:hover {
-  background:#ffffff20
-}
-.hero-famous-tabs {
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:14px;
-  padding-top:16px
-}
-.hero-famous-tabs button {
-  min-width:0;
-  border:0;
-  border-bottom:1px solid #c5c5bc;
-  background:transparent;
-  padding:0 0 12px;
-  text-align:left;
-  font-size:10px;
-  line-height:1.5;
-  white-space:nowrap;
-  color:#77776f;
-  transition:color .2s,border-color .2s
-}
-.hero-famous-tabs button span {
-  font-size:8px;
-  margin-right:7px;
-  color:#85857b
-}
-.hero-famous-tabs button[aria-pressed=true] {
-  border-bottom:2px solid var(--ink);
-  padding-bottom:11px;
-  color:var(--ink)
-}
-.hero-famous-credits {
-  padding:12px 0 14px
-}
-.hero-famous-credits p {
-  font-size:9px;
-  line-height:1.4;
-  letter-spacing:.15px;
-  margin:0 0 6px
-}
-.hero-famous-credits small {
-  display:block;
-  color:#797970;
-  font-size:8px;
-  line-height:1.5;
-  min-height:24px
-}
-.hero-famous-credits a {
-  text-decoration:underline;
-  text-underline-offset:2px
-}
-.hero-famous-credits a:hover {
-  color:var(--ink)
-}
-@media(max-width:1100px) {
-  .hero-famous-panel {
-    min-height:565px
-  }
-  .hero-famous-photo {
-    min-height:420px
-  }
-  .hero-famous-tabs {
-    gap:8px
-  }
-  .hero-famous-tabs button {
-    font-size:9px
-  }
-  .hero-famous-tabs button span {
-    margin-right:5px
-  }
-}
-@media(max-width:850px) {
-  .hero-famous-panel {
-    min-height:515px
-  }
-  .hero-famous-photo {
-    min-height:390px
-  }
-  .hero-famous-name.hero-photo-tag {
-    left:18px;
-    right:18px;
-    bottom:18px
-  }
-  .hero-famous-name strong {
-    font-size:23px
-  }
-  .hero-famous-name small {
-    font-size:7px
-  }
-  .hero-famous-arrows {
-    gap:4px
-  }
-  .hero-famous-arrows .MuiIconButton-root {
-    width:28px;
-    height:28px;
-    font-size:17px
-  }
-  .hero-famous-tabs {
-    gap:6px
-  }
-  .hero-famous-tabs button {
-    font-size:8px
-  }
-  .hero-famous-tabs button span {
-    display:block;
-    font-size:7px;
-    margin:0 0 3px
-  }
-  .hero-famous-credits p {
-    font-size:8px
-  }
-  .hero-famous-credits small {
-    font-size:7px
-  }
-}
-@media(max-width:600px) {
-  .hero-famous-panel {
-    min-height:0
-  }
-  .hero-famous-photo {
-    flex:none;
-    min-height:0;
-    height:430px
-  }
-  .hero-famous-name.hero-photo-tag {
-    bottom:22px;
-    left:22px;
-    right:22px
-  }
-  .hero-famous-name strong {
-    font-size:29px
-  }
-  .hero-famous-name small {
-    font-size:8px
-  }
-  .hero-famous-arrows .MuiIconButton-root {
-    width:32px;
-    height:32px;
-    font-size:20px
-  }
-  .hero-famous-tabs {
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:12px 22px;
-    padding-top:15px
-  }
-  .hero-famous-tabs button {
-    font-size:9px
-  }
-  .hero-famous-tabs button span {
-    display:inline;
-    font-size:7px;
-    margin:0 5px 0 0
-  }
-  .hero-famous-credits {
-    padding:12px 0
-  }
-  .hero-famous-credits p {
-    font-size:9px
-  }
-  .hero-famous-credits small {
-    font-size:8px;
-    min-height:24px
-  }
-}
-@media(max-width:360px) {
-  .hero-famous-name strong {
-    font-size:25px
-  }
-  .hero-famous-tabs {
-    gap:8px
-  }
-  .hero-famous-tabs button {
-    font-size:8px
-  }
-  .hero-famous-tabs button span {
-    font-size:6px;
-    margin-right:3px
-  }
-}
-/* Every carousel action remains reachable without hover. */
-.hero-famous-arrows  {
-  position: absolute;
-  right: 0;
-  bottom: 68px;
-}
-.hero-famous-arrows .MuiIconButton-root  {
-  width: 44px;
-  height: 44px;
-}
-.hero-famous-tabs button  {
-  min-height: 44px;
-}
-.hero-famous-tabs button:focus-visible  {
-  outline-offset: 3px;
-}
-.hero-famous-name > div:first-child  {
-  min-width: 0;
-}
+@media(prefers-reduced-motion:reduce) { .chapter-portrait img { animation:none; } }

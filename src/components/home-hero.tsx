@@ -1,57 +1,30 @@
 "use client";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
+import { useState } from "react";
 import Image from "next/image";
-import IconButton from "@mui/material/IconButton";
-import { Arrow } from "@/components/site-shell";
+import Link from "next/link";
 import "./home-hero.css";
 
-const inspirations = [
-  { name: "Chico Lachowski", image: "/images/inspiration-chico.jpg", author: "Sara Cimino", source: "https://commons.wikimedia.org/wiki/File:Francisco_Lachowski_2011.jpg", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/", position: "50% 34%", shareAlike: false },
-  { name: "Jordan Barrett", image: "/images/inspiration-jordan.jpg", author: "Stefan Heesch / Nordfriisk Photography", source: "https://commons.wikimedia.org/wiki/File:Jordan-barrett-mbfw-march-2022-fashion-week-berlin.jpg", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", position: "50% 28%", shareAlike: true },
-  { name: "Sean O’Pry", image: "/images/inspiration-sean-opry.jpg", author: "Sara Cimino", source: "https://commons.wikimedia.org/wiki/File:Sean_Opry.jpg", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/", position: "50% 20%", shareAlike: false },
-  { name: "David Gandy", image: "/images/inspiration-david.jpg", author: "Walterlan Papetti", source: "https://commons.wikimedia.org/wiki/File:David_Gandy.jpg", license: "CC BY-SA 2.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/", position: "50% 25%", shareAlike: true },
+const icons = [
+  { name: "Francisco Lachowski", short: "Chico", image: "/images/inspiration-chico.jpg", author: "Sara Cimino", source: "https://commons.wikimedia.org/wiki/File:Francisco_Lachowski_2011.jpg", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/", position: "50% 28%" },
+  { name: "Jordan Barrett", short: "Jordan", image: "/images/inspiration-jordan.jpg", author: "Stefan Heesch / Nordfriisk Photography", source: "https://commons.wikimedia.org/wiki/File:Jordan-barrett-mbfw-march-2022-fashion-week-berlin.jpg", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", position: "50% 30%" },
+  { name: "Sean O’Pry", short: "Sean", image: "/images/inspiration-sean-opry.jpg", author: "Sara Cimino", source: "https://commons.wikimedia.org/wiki/File:Sean_Opry.jpg", license: "CC BY 2.0", licenseUrl: "https://creativecommons.org/licenses/by/2.0/", position: "50% 24%" },
+  { name: "David Gandy", short: "David", image: "/images/inspiration-david.jpg", author: "Walterlan Papetti", source: "https://commons.wikimedia.org/wiki/File:David_Gandy.jpg", license: "CC BY-SA 2.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0/", position: "50% 24%" },
 ];
 
 export default function HomeHero() {
   const [active, setActive] = useState(0);
-  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
-  const model = inspirations[active];
-  const move = (direction: number) => setActive((current) => (current + direction + inspirations.length) % inspirations.length);
-
-  return <section className="home-hero hero-famous" aria-label="Runway Models — вдохновение">
-    <div className="hero-topline"><span>НЕЗАВИСИМАЯ ПЛАТФОРМА МОДЕЛЬНОЙ ИНДУСТРИИ</span><span>АЛМАТЫ / АСТАНА — EST. 2026</span></div>
-    <div className="hero-grid">
-      <div className="hero-copy">
-        <p className="eyebrow"><span className="tiny-dot" /> NEW SEASON. NEW FACES.</p>
-        <h1>ТВОЙ<br /><span>ВЫХОД.</span></h1>
-        <p className="hero-description">Подиум начинается с характера.<br />Находи свой стиль, свою команду<br />и новые возможности.</p>
-        <div className="hero-buttons"><Link href="/casting" className="button button-dark">Стать моделью <Arrow /></Link><Link href="/events" className="hero-secondary">Ближайшие показы <Arrow /></Link></div>
-        <div className="hero-edition"><span>THE ICONS</span><span className="edition-line" /><span>INDIVIDUALITY IS EVERYTHING</span></div>
-      </div>
-      <div className="hero-famous-panel">
-        <div className="hero-photo hero-famous-photo" id="hero-famous-photo">
-          <Image key={model.image} src={model.image} alt={`${model.name} — фотография известной модели, визуальный референс`} fill priority={active === 0} sizes="(max-width: 600px) 92vw, 50vw" style={{ objectPosition: model.position }} />
-          <span className="photo-vertical">THE ICONS / RUNWAY INSPIRATION</span>
-          <div className="hero-photo-tag hero-famous-name"><div aria-live="polite"><small>ХАРАКТЕР ВНЕ ВРЕМЕНИ</small><strong>{model.name}</strong></div><div className="hero-famous-arrows"><IconButton aria-label="Предыдущая известная модель" onClick={() => move(-1)}>←</IconButton><IconButton aria-label="Следующая известная модель" onClick={() => move(1)}>→</IconButton></div></div>
-        </div>
-        <div className="hero-famous-tabs" role="group" aria-label="Выберите известную модель">{inspirations.map((item, index) => <button key={item.name} ref={element => { buttons.current[index] = element; }} onKeyDown={event => {
-            if (event.altKey || event.ctrlKey || event.metaKey) return;
-            let next = index;
-            if (event.key === "ArrowRight") next = (index + 1) % inspirations.length;
-            else if (event.key === "ArrowLeft") next = (index - 1 + inspirations.length) % inspirations.length;
-            else if (event.key === "Home") next = 0;
-            else if (event.key === "End") next = inspirations.length - 1;
-            else return;
-            event.preventDefault(); setActive(next); buttons.current[next]?.focus();
-          }} type="button" aria-pressed={active === index} aria-controls="hero-famous-photo" onClick={() => setActive(index)}><span>{String(index + 1).padStart(2, "0")}</span>{item.name}</button>)}</div>
-        <div className="hero-famous-credits">
-          <p>Визуальные референсы · не участники проекта</p>
-          <small>Фото: {model.author} / <a href={model.source} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · <a href={model.licenseUrl} target="_blank" rel="noopener noreferrer">{model.license}</a>. Кадрировано, ч/б.{model.shareAlike && ` Адаптация: ${model.license}.`}</small>
-        </div>
-      </div>
+  const model = icons[active];
+  const secondary = icons[(active + 1) % icons.length];
+  return <section className="chapter-hero page-shell" aria-label="The Icons — вдохновение Runway">
+    <div className="chapter-hero-kicker"><span>Independent minds. Distinctive faces.</span><span>Almaty / Astana</span></div>
+    <div className="chapter-hero-heading"><h1>ЛИЦА.<br /><em>ХАРАКТЕР.</em></h1><div><p>Внешность привлекает.<br />Индивидуальность остаётся.</p><Link className="editorial-link" href="/models">Открыть каталог моделей</Link></div></div>
+    <div className="chapter-photo-story">
+      <div className="chapter-portrait" id="icon-portrait"><Image key={model.image} src={model.image} alt={model.name + " — визуальный референс Runway"} fill priority sizes="(max-width: 650px) 92vw, 57vw" style={{objectPosition:model.position}} /><span className="chapter-image-label">THE ICONS / FASHION INSPIRATION</span></div>
+      <div className="chapter-secondary"><div className="chapter-secondary-image"><Image key={secondary.image} src={secondary.image} alt={secondary.name + " — визуальный референс Runway"} fill sizes="(max-width: 650px) 38vw, 28vw" style={{objectPosition:secondary.position}} /></div><p>Присутствие.<br />Не требует объяснений.</p><Link href="/casting" className="editorial-link">Стать новым лицом</Link></div>
+      <div className="chapter-icon-name" aria-live="polite"><span>{model.name.split(' ')[0]}</span><span>{model.name.split(' ').slice(1).join(' ')}</span></div>
     </div>
-    <div className="hero-bottomline"><span>МОДЕЛИ. МОДА. ДВИЖЕНИЕ.</span><a href="#discover">ЛИСТАЙ И ОТКРЫВАЙ <span>↓</span></a><span>БОЛЬШЕ, ЧЕМ ВНЕШНОСТЬ</span></div>
+    <div className="chapter-icon-controls"><div className="chapter-icon-select" role="group" aria-label="Выбрать известную модель">{icons.map((icon,index)=><button type="button" key={icon.name} aria-pressed={index===active} aria-controls="icon-portrait" onClick={()=>setActive(index)}>{icon.short}</button>)}</div><p>Визуальные ориентиры. Не участники агентства.</p></div>
+    <details className="chapter-photo-credits"><summary>Об авторах фотографий</summary><p>На экране: {model.name} и {secondary.name}. Фото кадрированы и показаны в чёрно-белой обработке.</p>{[model,secondary].map(icon=><p key={icon.name}>{icon.name}: {icon.author} · <a href={icon.source} target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> · <a href={icon.licenseUrl} target="_blank" rel="noopener noreferrer">{icon.license}</a>{icon.license.includes('SA') ? ". Адаптация: " + icon.license + "." : '.'}</p>)}</details>
   </section>;
 }
