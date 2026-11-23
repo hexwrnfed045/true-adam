@@ -13,6 +13,7 @@ import { useSession } from './session-provider';
 import { applicationDefaults } from '@/lib/application-ui';
 import { Arrow } from './site-shell';
 import './forms.css';
+import UnsavedChanges from './unsaved-changes';
 
 const photoTypes = ['image/jpeg', 'image/png', 'image/webp'];
 const maxPhotoBytes = 5 * 1024 * 1024;
@@ -256,6 +257,7 @@ function ApplicationForm({ contact }: { contact: boolean }) {
       {fieldErrors.consent && <p className="form-error">{fieldErrors.consent}</p>}
       <Button variant="contained" type="submit" disabled={busy || readingPhotos || !currentTemplateLoaded || unavailable || invalidReference} endIcon={busy ? <CircularProgress size={18} color="inherit" /> : <Arrow />} sx={{ width: '100%', justifyContent: 'space-between' }}>{busy ? 'Отправляем анкету…' : type === 'viewer' ? 'Записаться зрителем' : type === 'course' ? 'Отправить заявку на обучение' : 'Отправить анкету'}</Button>
     </fieldset>
+    <UnsavedChanges active={dirty && !receipt} onLeave={() => setDirty(false)} />
     <Dialog open={reauth} onClose={() => !reauthBusy && setReauth(false)} fullWidth maxWidth="sm" aria-labelledby="restore-session-title"><form onSubmit={restoreSession}><DialogTitle id="restore-session-title">Войдите снова</DialogTitle><DialogContent><p className="muted">Срок входа истёк. Подтвердите пароль — заполненная анкета и выбранные фото останутся на месте.</p><div className="application-form">{reauthError && <Alert severity="error">{reauthError}</Alert>}<TextField label="Email" value={user.email} slotProps={{ input: { readOnly: true } }} /><TextField autoFocus name="sessionPassword" label="Пароль" type="password" autoComplete="current-password" required disabled={reauthBusy} slotProps={{ htmlInput: { maxLength: 128 } }} /></div></DialogContent><DialogActions><Button onClick={() => setReauth(false)} disabled={reauthBusy}>Закрыть</Button><Button type="submit" variant="contained" disabled={reauthBusy}>{reauthBusy ? 'Входим…' : 'Восстановить вход'}</Button></DialogActions></form></Dialog>
   </form>;
 }
